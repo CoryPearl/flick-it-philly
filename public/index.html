@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0a1628" />
+    <title>Flick It Philly</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <main class="main">
+        <!-- Home -->
+        <section id="screen-home" class="screen screen-home" hidden>
+          <header class="screen-header home-header">
+            <h1>Flick It Philly</h1>
+          </header>
+          <div class="home-scroll">
+            <h2 class="home-section-title">Your reports</h2>
+            <ul id="request-list" class="request-list"></ul>
+            <p id="home-empty" class="empty-state" hidden>
+              No reports yet. Use the camera to add photos and/or a voice note,
+              then generate a report. Tap a saved concern for details or submit
+              later.
+            </p>
+
+            <h2 class="home-section-title home-section-spaced">All reports</h2>
+            <p class="home-section-sub">
+              Blue dots are <strong>not completed yet</strong> in the city’s
+              data: status <strong>Open</strong> and no close time—
+              <strong>closed</strong> 311 tickets are not shown. Up to 8,000 of
+              the newest in the last 90 days (with coordinates) from
+              phl.carto.com. Gold: your saved concerns.
+            </p>
+            <div id="map" class="map map-home"></div>
+            <p class="map-legend">
+              Gold: your reports · Blue: open (not completed) city 311
+            </p>
+          </div>
+        </section>
+
+        <!-- Camera -->
+        <section id="screen-camera" class="screen screen-camera">
+          <div
+            class="slots"
+            id="image-slots"
+            aria-label="Photo slots, remove with the X button"
+          ></div>
+          <div class="preview-wrap">
+            <video
+              id="camera-preview"
+              class="camera-preview"
+              playsinline
+              autoplay
+              muted
+              aria-label="Live camera feed"
+            ></video>
+            <div
+              id="camera-overlay"
+              class="camera-overlay is-live"
+              aria-live="polite"
+            >
+              <div class="camera-overlay-content">
+                <p id="camera-overlay-title" class="overlay-title">
+                  Add photos and/or a voice note, then Report
+                </p>
+                <p id="camera-overlay-hint" class="overlay-hint" hidden></p>
+              </div>
+            </div>
+          </div>
+          <div class="voice-row" id="voice-row">
+            <button
+              type="button"
+              id="btn-voice"
+              class="ctrl-btn voice-btn"
+              aria-label="Record or stop voice note"
+            >
+              Voice
+            </button>
+            <span id="voice-status" class="voice-status" hidden></span>
+            <button
+              type="button"
+              id="btn-voice-clear"
+              class="ctrl-btn voice-clear-btn"
+              aria-label="Remove voice note"
+              hidden
+            >
+              Clear voice
+            </button>
+          </div>
+          <div class="camera-controls">
+            <button
+              type="button"
+              id="btn-gallery"
+              class="ctrl-btn"
+              aria-label="Upload photos from your library"
+            >
+              Gallery
+            </button>
+            <button
+              type="button"
+              id="btn-capture"
+              class="capture-btn"
+              aria-label="Take photo"
+            ></button>
+            <button type="button" id="btn-generate" class="ctrl-btn primary">
+              Report
+            </button>
+          </div>
+          <input
+            type="file"
+            id="file-gallery"
+            accept="image/*"
+            multiple
+            hidden
+          />
+        </section>
+
+        <!-- Settings -->
+        <section id="screen-settings" class="screen" hidden>
+          <header class="screen-header">
+            <h1>Settings</h1>
+          </header>
+          <div class="settings-list">
+            <label class="setting-row">
+              <span>Dark mode</span>
+              <input type="checkbox" id="set-dark" checked />
+            </label>
+            <label class="setting-row">
+              <span>Use device location</span>
+              <input type="checkbox" id="set-location" checked />
+            </label>
+            <label class="setting-row">
+              <span>Use device camera</span>
+              <input type="checkbox" id="set-camera" checked />
+            </label>
+            <div class="setting-camera-actions">
+              <button type="button" id="btn-camera-permission" class="settings-action-btn">
+                Request camera permission
+              </button>
+              <button type="button" id="btn-open-app-settings" class="settings-action-btn">
+                Open app settings
+              </button>
+              <p class="settings-help">
+                Use these if the camera dialog was blocked or the live view won’t
+                start.
+              </p>
+            </div>
+            <button type="button" id="btn-clear-data" class="danger-btn">
+              Clear all local data
+            </button>
+          </div>
+        </section>
+      </main>
+
+      <nav class="bottom-nav" aria-label="Main">
+        <button type="button" class="nav-item active" data-nav="home">
+          <span class="nav-icon">⌂</span>
+          <span>Home</span>
+        </button>
+        <button type="button" class="nav-item" data-nav="camera">
+          <span class="nav-icon">◎</span>
+          <span>Camera</span>
+        </button>
+        <button type="button" class="nav-item" data-nav="settings">
+          <span class="nav-icon">⚙</span>
+          <span>Settings</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- Confirm capture -->
+    <div id="modal-confirm" class="modal" hidden>
+      <div class="modal-backdrop" data-close="confirm"></div>
+      <div class="modal-card">
+        <h2>Use this photo?</h2>
+        <img id="confirm-preview" alt="Selected photo" />
+        <div class="modal-actions">
+          <button type="button" id="btn-retake">Retake</button>
+          <button type="button" id="btn-accept" class="primary">Accept</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Report editor -->
+    <div id="modal-report" class="modal" hidden>
+      <div class="modal-backdrop" data-close="report"></div>
+      <div class="modal-card modal-report">
+        <h2>Edit report</h2>
+        <div id="report-ai-triage" class="ai-triage" hidden>
+          <p class="ai-triage-heading">AI review</p>
+          <p id="report-ai-triage-text" class="ai-triage-text"></p>
+        </div>
+        <form id="form-report" class="report-form">
+          <label>
+            Category
+            <select id="field-category" name="category"></select>
+          </label>
+          <label>
+            Description
+            <textarea id="field-description" name="description" rows="4"></textarea>
+          </label>
+          <label>
+            Location
+            <input
+              type="text"
+              id="field-location"
+              name="location"
+              placeholder="Address or intersection"
+              autocomplete="street-address"
+            />
+          </label>
+          <div id="field-dynamic" class="dynamic-fields"></div>
+          <p id="report-offline-note" class="note" hidden>
+            You’re offline or AI failed — fill in the form manually.
+          </p>
+          <div class="modal-actions modal-actions-split">
+            <button type="button" id="btn-report-cancel">Cancel</button>
+            <div class="modal-actions-primary">
+              <button type="button" id="btn-report-save" class="secondary">
+                Save concern
+              </button>
+              <button type="button" id="btn-report-submit" class="primary">
+                Submit concern
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Saved concern detail -->
+    <div id="modal-detail" class="modal" hidden>
+      <div class="modal-backdrop" data-close="detail"></div>
+      <div class="modal-card modal-detail">
+        <h2>Your concern</h2>
+        <p id="detail-status-line" class="detail-status-line"></p>
+        <div id="detail-images" class="detail-images"></div>
+        <div id="detail-voice-wrap" class="detail-voice-wrap" hidden></div>
+        <div id="detail-body" class="detail-body"></div>
+        <div class="modal-actions modal-detail-actions">
+          <button type="button" id="btn-detail-close">Close</button>
+          <button type="button" id="btn-detail-edit" class="secondary">
+            Edit
+          </button>
+          <button type="button" id="btn-detail-submit" class="primary" hidden>
+            Submit to 311
+          </button>
+        </div>
+        <button type="button" id="btn-detail-delete" class="detail-delete-btn">
+          Delete from this device
+        </button>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast" hidden role="status"></div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      crossorigin=""
+    ></script>
+    <script src="app.js" defer></script>
+  </body>
+</html>
