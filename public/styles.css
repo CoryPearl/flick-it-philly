@@ -28,7 +28,7 @@ body {
 }
 
 body.light {
-  --bg: #e8eef5;
+  --bg: #ffffff;
   --bg-elevated: #ffffff;
   --text: #0a1628;
   --muted: #5a6b80;
@@ -227,6 +227,13 @@ body.light .home-header h1 {
   border-radius: 10px;
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+body.light .map-filters,
+body.light .map-key {
+  background: #ffffff;
+  border: 1px solid rgba(10, 22, 40, 0.1);
+  box-shadow: 0 1px 3px rgba(10, 22, 40, 0.06);
 }
 
 .map-filter-block {
@@ -563,7 +570,8 @@ body.light .map-locate-btn {
 }
 
 body.light .request-card {
-  border-color: rgba(10, 22, 40, 0.08);
+  border-color: rgba(10, 22, 40, 0.1);
+  box-shadow: 0 1px 3px rgba(10, 22, 40, 0.05);
 }
 
 .request-thumb {
@@ -1146,6 +1154,11 @@ audio.voice-playback[hidden] {
     box-shadow 0.22s ease;
 }
 
+body.light .setting-row {
+  border-color: rgba(10, 22, 40, 0.1);
+  box-shadow: 0 1px 3px rgba(10, 22, 40, 0.04);
+}
+
 .setting-row input[type="checkbox"] {
   width: 1.35rem;
   height: 1.35rem;
@@ -1184,8 +1197,8 @@ audio.voice-playback[hidden] {
 }
 
 body.light .setting-url-input {
-  background: #f4f7fb;
-  border-color: rgba(10, 22, 40, 0.15);
+  background: #ffffff;
+  border-color: rgba(10, 22, 40, 0.12);
 }
 
 .settings-code {
@@ -1247,6 +1260,11 @@ body.light .setting-url-input {
   background: var(--bg-elevated);
   border-top: 1px solid rgba(212, 175, 55, 0.2);
   z-index: 50;
+}
+
+body.light .bottom-nav {
+  border-top-color: rgba(10, 22, 40, 0.08);
+  box-shadow: 0 -4px 16px rgba(10, 22, 40, 0.06);
 }
 
 .nav-item {
@@ -1424,6 +1442,11 @@ body.light .modal-actions button.danger {
 .modal-actions button.secondary {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.22);
+}
+
+body.light .modal-actions button.secondary {
+  background: rgba(10, 22, 40, 0.05);
+  border-color: rgba(10, 22, 40, 0.14);
 }
 
 .modal-actions-split {
@@ -1610,7 +1633,8 @@ body.light .modal-actions button.danger {
 body.light .report-form input,
 body.light .report-form select,
 body.light .report-form textarea {
-  border-color: rgba(10, 22, 40, 0.15);
+  background: #ffffff;
+  border-color: rgba(10, 22, 40, 0.12);
 }
 
 .dynamic-fields {
@@ -1657,6 +1681,11 @@ body.light .report-form textarea {
 
 .field-tag-optional {
   background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+}
+
+body.light .field-tag-optional {
+  background: rgba(10, 22, 40, 0.06);
   color: var(--muted);
 }
 
