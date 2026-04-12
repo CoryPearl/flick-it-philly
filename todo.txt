@@ -1,5 +1,6 @@
 - Cross check input for each kind of report on philly 311
 - Redesinging the layout - animations?
-- Andriod camera opens real camera app
 
-- make sure to pitch that it wont let you if not serious and that the feilds and sections are the exact same as philyy 311 so integrating them would be easy, and talk about how you can add voice
+- filtering on map
+
+- make sure to pitch that it wont let you if not serious and that the feilds and sections are the exact same as philyy 311 so integrating them would be easy, and talk about how you can add voice, multi lingual

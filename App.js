@@ -2,7 +2,11 @@ import { useEffect, useMemo, useRef } from "react";
 import { Linking, Platform, StyleSheet, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import Constants from "expo-constants";
-import { Audio } from "expo-av";
+import {
+  Audio,
+  InterruptionModeAndroid,
+  InterruptionModeIOS,
+} from "expo-av";
 import { Camera } from "expo-camera";
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
@@ -11,10 +15,50 @@ import { WebView } from "react-native-webview";
 
 import webBundle from "./webBundle.js";
 
+/** Tiny silent clip: activates iOS AVAudioSession as Playback (main speaker), not PlayAndRecord (receiver). */
+const SILENCE_WAV = require("./assets/silence.wav");
+
 const INJECT_RETRY_CAMERA = `try{if(window.__FLICK_RETRY_CAMERA)window.__FLICK_RETRY_CAMERA();}catch(e){}true;`;
 
 let activeVoiceRecording = null;
 let voiceMaxTimer = null;
+
+/**
+ * After voice recording, expo-av may leave the session in PlayAndRecord (receiver / “iPhone earpiece”).
+ * Brief Playback via Sound applies AVAudioSessionCategoryPlayback so WebView `<audio>` uses the loudspeaker.
+ */
+async function nudgeIosAudioSessionToSpeaker() {
+  if (Platform.OS !== "ios") return;
+  try {
+    const { sound } = await Audio.Sound.createAsync(SILENCE_WAV, {
+      volume: 0.02,
+      shouldPlay: true,
+    });
+    await new Promise((r) => setTimeout(r, 70));
+    await sound.stopAsync();
+    await sound.unloadAsync();
+  } catch {
+    /* asset or session edge cases */
+  }
+}
+
+/** Route media playback to the main speaker (not the earpiece) after recording or on launch. */
+async function resetAudioModeForPlayback() {
+  try {
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: true,
+      interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
+      interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
+      shouldDuckAndroid: true,
+      playThroughEarpieceAndroid: false,
+      staysActiveInBackground: false,
+    });
+    await nudgeIosAudioSessionToSpeaker();
+  } catch {
+    /* WebView playback still works; mode reset is best-effort */
+  }
+}
 
 function injectVoiceRecordingState(webRef, active) {
   webRef.current?.injectJavaScript(
@@ -32,6 +76,7 @@ async function finishNativeVoiceRecording(webRef) {
   injectVoiceRecordingState(webRef, false);
   if (!rec) {
     injectToast(webRef, "No recording in progress.");
+    await resetAudioModeForPlayback();
     return;
   }
   try {
@@ -64,6 +109,8 @@ async function finishNativeVoiceRecording(webRef) {
       webRef,
       String(e?.message || e || "Could not save recording").slice(0, 120)
     );
+  } finally {
+    await resetAudioModeForPlayback();
   }
 }
 
@@ -86,8 +133,11 @@ async function toggleNativeVoiceRecording(webRef) {
       playsInSilentModeIOS: true,
       staysActiveInBackground: false,
     });
+    /* Android LOW_QUALITY is 3GP/AMR; we labeled it audio/mp4 and WebView <audio> could not decode. */
     const { recording } = await Audio.Recording.createAsync(
-      Audio.RecordingOptionsPresets.LOW_QUALITY
+      Platform.OS === "android"
+        ? Audio.RecordingOptionsPresets.HIGH_QUALITY
+        : Audio.RecordingOptionsPresets.LOW_QUALITY
     );
     activeVoiceRecording = recording;
     injectVoiceRecordingState(webRef, true);
@@ -104,6 +154,7 @@ async function toggleNativeVoiceRecording(webRef) {
       webRef,
       String(e?.message || e || "Recording failed").slice(0, 120)
     );
+    await resetAudioModeForPlayback();
   }
 }
 
@@ -233,16 +284,24 @@ function defaultGeminiModels(csv) {
   ];
 }
 
-async function geminiRequestOne(modelId, apiKey, prompt, imageParts, jsonMode) {
-  const parts = [
-    { text: prompt },
+async function geminiRequestOne(modelId, apiKey, prompt, imageParts, audioPart, jsonMode) {
+  const parts = [{ text: prompt }];
+  if (audioPart?.data) {
+    parts.push({
+      inlineData: {
+        mimeType: audioPart.mimeType || "audio/mp4",
+        data: audioPart.data,
+      },
+    });
+  }
+  parts.push(
     ...imageParts.map((im) => ({
       inlineData: {
         mimeType: im.mimeType || "image/jpeg",
         data: im.data,
       },
-    })),
-  ];
+    }))
+  );
   const gen = { temperature: 0.35, maxOutputTokens: 2048 };
   if (jsonMode) gen.responseMimeType = "application/json";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${encodeURIComponent(apiKey)}`;
@@ -275,7 +334,7 @@ async function geminiRequestOne(modelId, apiKey, prompt, imageParts, jsonMode) {
   return data;
 }
 
-async function executeGeminiWithRetries(models, apiKey, prompt, imageParts) {
+async function executeGeminiWithRetries(models, apiKey, prompt, imageParts, audioPart) {
   async function doCall(idx, jsonMode) {
     if (idx >= models.length) {
       throw new Error("All Gemini models failed. Check API key in Google AI Studio.");
@@ -286,6 +345,7 @@ async function executeGeminiWithRetries(models, apiKey, prompt, imageParts) {
         apiKey,
         prompt,
         imageParts,
+        audioPart,
         jsonMode
       );
       if (data.error) {
@@ -432,18 +492,14 @@ async function runGeminiGenerate(webRef, msg) {
   }
   try {
     const models = defaultGeminiModels(modelsCsv);
-    const media = [...(msg.images || [])];
-    if (msg.audio?.data) {
-      media.push({
-        mimeType: msg.audio.mimeType || "audio/mp4",
-        data: msg.audio.data,
-      });
-    }
+    const imageParts = msg.images || [];
+    const audioPart = msg.audio?.data ? msg.audio : null;
     const ai = await executeGeminiWithRetries(
       models,
       apiKey,
       msg.prompt,
-      media
+      imageParts,
+      audioPart
     );
     injectGeminiNativeResult(webRef, { requestId, ok: true, ai });
   } catch (e) {
@@ -549,6 +605,7 @@ export default function App() {
     (async () => {
       await Location.requestForegroundPermissionsAsync().catch(() => {});
       await Camera.requestCameraPermissionsAsync().catch(() => {});
+      await resetAudioModeForPlayback();
       if (cancelled) return;
       webRef.current?.injectJavaScript(INJECT_RETRY_CAMERA);
     })();
@@ -559,7 +616,7 @@ export default function App() {
 
   const injectedJavaScriptBeforeContentLoaded = useMemo(
     () =>
-      `(function(){window.__GEMINI_API_KEY__=${JSON.stringify(apiKey)};window.__GEMINI_MODELS__=${JSON.stringify(geminiModels)};window.__FLICK_USE_NATIVE_CAPTURE__=${Platform.OS === "android" ? "true" : "false"};window.__FLICK_GEMINI_USE_NATIVE__=true;window.__FLICK_IS_ANDROID__=${Platform.OS === "android" ? "true" : "false"};})();true;`,
+      `(function(){window.__GEMINI_API_KEY__=${JSON.stringify(apiKey)};window.__GEMINI_MODELS__=${JSON.stringify(geminiModels)};window.__FLICK_USE_NATIVE_CAPTURE__=false;window.__FLICK_GEMINI_USE_NATIVE__=true;window.__FLICK_IS_ANDROID__=${Platform.OS === "android" ? "true" : "false"};})();true;`,
     [apiKey, geminiModels]
   );
 
@@ -571,11 +628,7 @@ export default function App() {
       if (handleAndroidGeminiMessage(webRef, msg)) {
         return;
       }
-      if (msg.type === "REQUEST_CAMERA_PERMISSION") {
-        Camera.requestCameraPermissionsAsync().then(() => {
-          webRef.current?.injectJavaScript(INJECT_RETRY_CAMERA);
-        });
-      } else if (msg.type === "OPEN_APP_SETTINGS") {
+      if (msg.type === "OPEN_APP_SETTINGS") {
         Linking.openSettings();
       } else if (msg.type === "PICK_IMAGES_FROM_LIBRARY") {
         void pickImagesFromLibrary(webRef);
@@ -585,6 +638,8 @@ export default function App() {
         void runGeminiGenerate(webRef, msg);
       } else if (msg.type === "VOICE_RECORD_TOGGLE") {
         void toggleNativeVoiceRecording(webRef);
+      } else if (msg.type === "VOICE_PLAYBACK_SPEAKER") {
+        void resetAudioModeForPlayback();
       } else if (msg.type === "REQUEST_NATIVE_LOCATION") {
         void refreshNativeLocationAndInject(webRef);
       }

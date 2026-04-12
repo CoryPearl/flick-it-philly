@@ -32,18 +32,14 @@
               later.
             </p>
 
-            <h2 class="home-section-title home-section-spaced">All reports</h2>
+            <h2 class="home-section-title home-section-spaced">Your submitted reports</h2>
             <p class="home-section-sub">
-              Blue dots are <strong>not completed yet</strong> in the city’s
-              data: status <strong>Open</strong> and no close time—
-              <strong>closed</strong> 311 tickets are not shown. Up to 8,000 of
-              the newest in the last 90 days (with coordinates) from
-              phl.carto.com. Gold: your saved concerns.
+              Map shows concerns you’ve <strong>submitted</strong> on this device
+              that have a location (from when you saved the report). Saved drafts
+              without submit are not shown here.
             </p>
             <div id="map" class="map map-home"></div>
-            <p class="map-legend">
-              Gold: your reports · Blue: open (not completed) city 311
-            </p>
+            <p class="map-legend">Gold: your submitted reports (this device only)</p>
           </div>
         </section>
 
@@ -54,7 +50,7 @@
             id="image-slots"
             aria-label="Photo slots, remove with the X button"
           ></div>
-          <div class="preview-wrap">
+          <div class="preview-wrap" id="camera-preview-wrap">
             <video
               id="camera-preview"
               class="camera-preview"
@@ -76,25 +72,35 @@
               </div>
             </div>
           </div>
-          <div class="voice-row" id="voice-row">
-            <button
-              type="button"
-              id="btn-voice"
-              class="ctrl-btn voice-btn"
-              aria-label="Record or stop voice note"
-            >
-              Voice
-            </button>
-            <span id="voice-status" class="voice-status" hidden></span>
-            <button
-              type="button"
-              id="btn-voice-clear"
-              class="ctrl-btn voice-clear-btn"
-              aria-label="Remove voice note"
+          <div class="voice-stack">
+            <div class="voice-row" id="voice-row">
+              <button
+                type="button"
+                id="btn-voice"
+                class="ctrl-btn voice-btn"
+                aria-label="Record or stop voice note"
+              >
+                Voice
+              </button>
+              <span id="voice-status" class="voice-status" hidden></span>
+              <button
+                type="button"
+                id="btn-voice-clear"
+                class="ctrl-btn voice-clear-btn"
+                aria-label="Remove voice note"
+                hidden
+              >
+                Clear voice
+              </button>
+            </div>
+            <audio
+              id="voice-note-playback"
+              class="voice-playback"
+              controls
+              preload="metadata"
               hidden
-            >
-              Clear voice
-            </button>
+              aria-label="Replay voice note"
+            ></audio>
           </div>
           <div class="camera-controls">
             <button
@@ -142,16 +148,17 @@
               <span>Use device camera</span>
               <input type="checkbox" id="set-camera" checked />
             </label>
+            <label class="setting-row">
+              <span>Use microphone</span>
+              <input type="checkbox" id="set-microphone" checked />
+            </label>
             <div class="setting-camera-actions">
-              <button type="button" id="btn-camera-permission" class="settings-action-btn">
-                Request camera permission
-              </button>
               <button type="button" id="btn-open-app-settings" class="settings-action-btn">
                 Open app settings
               </button>
               <p class="settings-help">
-                Use these if the camera dialog was blocked or the live view won’t
-                start.
+                Use this if the camera or microphone prompt was blocked or the
+                live view won’t start.
               </p>
             </div>
             <button type="button" id="btn-clear-data" class="danger-btn">
@@ -206,18 +213,26 @@
           </label>
           <label>
             Description
+            <span id="report-description-hint" class="form-field-meta"></span>
             <textarea id="field-description" name="description" rows="4"></textarea>
           </label>
           <label>
-            Location
+            Location (address)
+            <span class="form-field-meta">
+              <span class="field-tag field-tag-required">Required</span> — street address or intersection
+            </span>
             <input
               type="text"
               id="field-location"
               name="location"
-              placeholder="Address or intersection"
+              placeholder="Required: street address or intersection"
               autocomplete="street-address"
             />
           </label>
+          <p id="report-primary-photo-note" class="form-hint" hidden>
+            Your first photo is sent automatically as the primary image with this
+            report.
+          </p>
           <div id="field-dynamic" class="dynamic-fields"></div>
           <p id="report-offline-note" class="note" hidden>
             You’re offline or AI failed — fill in the form manually.

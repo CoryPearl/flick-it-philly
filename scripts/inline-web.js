@@ -9,7 +9,17 @@ const pub = path.join(root, "public");
 
 const html = fs.readFileSync(path.join(pub, "index.html"), "utf8");
 const css = fs.readFileSync(path.join(pub, "styles.css"), "utf8");
-const js = fs.readFileSync(path.join(pub, "app.js"), "utf8");
+const fieldSchemas = fs.readFileSync(path.join(pub, "fieldSchemas.js"), "utf8");
+const phillyLimitsPath = path.join(pub, "philly-city-limits.json");
+const phillyLimits = fs.readFileSync(phillyLimitsPath, "utf8");
+JSON.parse(phillyLimits);
+const js =
+  "window.__FLICK_PHILLY_LIMITS__=" +
+  phillyLimits +
+  ";\n" +
+  fieldSchemas +
+  "\n" +
+  fs.readFileSync(path.join(pub, "app.js"), "utf8");
 
 const bundled = html
   .replace(

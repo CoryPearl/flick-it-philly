@@ -4,19 +4,51 @@
   var STORAGE_REQUESTS = "flick_requests";
   var STORAGE_SETTINGS = "flick_settings";
 
-  var CATEGORIES = [
-    { value: "illegal_dumping", label: "Illegal dumping" },
-    { value: "pothole", label: "Pothole / street defect" },
-    { value: "broken_streetlight", label: "Broken streetlight" },
-    { value: "graffiti", label: "Graffiti removal" },
-    { value: "abandoned_vehicle", label: "Abandoned vehicle" },
-    { value: "sidewalk_defect", label: "Sidewalk defect" },
-    { value: "traffic_signal", label: "Traffic signal" },
-    { value: "noise_complaint", label: "Noise complaint" },
-    { value: "missed_collection", label: "Missed trash/recycling" },
-    { value: "water_issue", label: "Water / hydrant / flooding" },
-    { value: "other", label: "Other" },
-  ];
+  var CATEGORIES_FALLBACK = [{ value: "other", label: "Other" }];
+
+  function flickCategoriesList() {
+    if (
+      typeof window !== "undefined" &&
+      window.__FLICK_CATEGORIES &&
+      window.__FLICK_CATEGORIES.length
+    ) {
+      return window.__FLICK_CATEGORIES;
+    }
+    return CATEGORIES_FALLBACK;
+  }
+
+  var CATEGORIES = flickCategoriesList();
+
+  function normalizeCategorySlug(slug) {
+    if (!slug) return slug;
+    var m =
+      typeof window !== "undefined" && window.__FLICK_LEGACY_CATEGORY_MAP
+        ? window.__FLICK_LEGACY_CATEGORY_MAP
+        : {};
+    return Object.prototype.hasOwnProperty.call(m, slug) ? m[slug] : slug;
+  }
+
+  function resolveCategoryFromAi(slug) {
+    var raw = (slug || "other").toString().trim() || "other";
+    var mapped = normalizeCategorySlug(raw);
+    if (CATEGORIES.some(function (c) { return c.value === mapped; })) {
+      return mapped;
+    }
+    if (CATEGORIES.some(function (c) { return c.value === raw; })) {
+      return raw;
+    }
+    return "other";
+  }
+
+  function getSchemaForCategory(cat) {
+    var root =
+      typeof window !== "undefined" && window.__FLICK_CATEGORY_SCHEMAS
+        ? window.__FLICK_CATEGORY_SCHEMAS
+        : {};
+    var key = normalizeCategorySlug(cat || "other");
+    if (root[key]) return root[key];
+    return root.other || { descriptionRequired: true, fields: [] };
+  }
 
   function $(id) {
     return document.getElementById(id);
@@ -38,10 +70,16 @@
           darkMode: s.darkMode !== false,
           locationEnabled: s.locationEnabled !== false,
           cameraEnabled: s.cameraEnabled !== false,
+          microphoneEnabled: s.microphoneEnabled !== false,
         };
       }
     } catch (e) {}
-    return { darkMode: true, locationEnabled: true, cameraEnabled: true };
+    return {
+      darkMode: true,
+      locationEnabled: true,
+      cameraEnabled: true,
+      microphoneEnabled: true,
+    };
   }
 
   function saveSettings(s) {
@@ -67,7 +105,11 @@
     for (var i = 0; i < CATEGORIES.length; i++) {
       if (CATEGORIES[i].value === value) return CATEGORIES[i].label;
     }
-    return value || "Report";
+    var resolved = resolveCategoryFromAi(value);
+    for (var j = 0; j < CATEGORIES.length; j++) {
+      if (CATEGORIES[j].value === resolved) return CATEGORIES[j].label;
+    }
+    return (value || "Report").replace(/_/g, " ");
   }
 
   function formatTime(ts) {
@@ -198,8 +240,8 @@
     } else {
       setCameraOverlayMode("live");
       title.textContent = "Add photos and/or a voice note, then Report";
-      hint.textContent = "";
-      hint.hidden = true;
+      hint.textContent = "Pinch the preview with two fingers to zoom.";
+      hint.hidden = false;
     }
   }
 
@@ -210,13 +252,103 @@
     );
   }
 
+  function isAndroidAppShell() {
+    return window.__FLICK_IS_ANDROID__ === true;
+  }
+
+  function revokeVoiceAudioObjectUrl(aud) {
+    if (!aud || !aud.dataset.flickVoiceObjectUrl) return;
+    try {
+      URL.revokeObjectURL(aud.dataset.flickVoiceObjectUrl);
+    } catch (e) {}
+    delete aud.dataset.flickVoiceObjectUrl;
+  }
+
+  function sniffIs3gpFromFtyp(bytes) {
+    if (bytes.length < 12) return false;
+    if (bytes[4] !== 0x66 || bytes[5] !== 0x74 || bytes[6] !== 0x79 || bytes[7] !== 0x70)
+      return false;
+    var brand = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]);
+    return /^3g/i.test(brand);
+  }
+
+  function dataUrlToBlob(dataUrl, repairAndroidMislabeled3gp) {
+    var comma = dataUrl.indexOf(",");
+    if (comma === -1) return null;
+    var meta = dataUrl.slice(0, comma);
+    var b64 = dataUrl.slice(comma + 1);
+    var mime = "application/octet-stream";
+    var m = /^data:([^;,]+)/.exec(meta);
+    if (m) mime = m[1];
+    try {
+      var binary = atob(b64);
+      var len = binary.length;
+      var bytes = new Uint8Array(len);
+      for (var i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+      var outMime = mime;
+      if (
+        repairAndroidMislabeled3gp &&
+        /^audio\/mp4/i.test(mime) &&
+        sniffIs3gpFromFtyp(bytes)
+      ) {
+        outMime = "audio/3gpp";
+      }
+      return new Blob([bytes], { type: outMime });
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /** Android WebView often fails on long data: URLs; object URLs are reliable. */
+  function setVoiceAudioElementSrc(aud, dataUrl) {
+    if (!aud || !dataUrl) return;
+    revokeVoiceAudioObjectUrl(aud);
+    if (isAndroidAppShell()) {
+      var blob = dataUrlToBlob(dataUrl, true);
+      if (blob && blob.size) {
+        var u = URL.createObjectURL(blob);
+        aud.dataset.flickVoiceObjectUrl = u;
+        aud.src = u;
+        return;
+      }
+    }
+    aud.src = dataUrl;
+  }
+
+  function requestNativeSpeakerForVoicePlayback() {
+    if (useNativeVoiceBridge()) {
+      postNative({ type: "VOICE_PLAYBACK_SPEAKER" });
+    }
+  }
+
+  function ensureVoicePlaybackSpeakerHook() {
+    var aud = $("voice-note-playback");
+    if (!aud || aud.dataset.flickSpeakerHook) return;
+    aud.dataset.flickSpeakerHook = "1";
+    aud.addEventListener("play", function () {
+      requestNativeSpeakerForVoicePlayback();
+    });
+  }
+
+  function stopVoiceRecordingIfActive() {
+    if (!state.voiceRecording) return;
+    if (useNativeVoiceBridge()) {
+      postNative({ type: "VOICE_RECORD_TOGGLE" });
+    } else {
+      stopBrowserVoiceRecording();
+    }
+  }
+
   function updateVoiceUi() {
     var btn = $("btn-voice");
     var clr = $("btn-voice-clear");
     var st = $("voice-status");
+    var aud = $("voice-note-playback");
     if (!btn || !clr) return;
+    var micOff = !state.settings.microphoneEnabled;
     btn.classList.toggle("is-recording", state.voiceRecording);
     btn.textContent = state.voiceRecording ? "Stop" : "Voice";
+    btn.disabled = micOff && !state.voiceRecording;
     var has = !!(state.voiceNote && String(state.voiceNote).trim());
     clr.hidden = !has;
     if (st) {
@@ -225,10 +357,40 @@
         st.textContent = "Recording…";
       } else if (has) {
         st.hidden = false;
-        st.textContent = "Voice note ready";
+        st.textContent = "Voice note ready — tap play to replay";
+      } else if (micOff) {
+        st.hidden = false;
+        st.textContent = "Microphone is off in Settings.";
       } else {
         st.hidden = true;
         st.textContent = "";
+      }
+    }
+    if (aud) {
+      if (!has || state.voiceRecording) {
+        try {
+          aud.pause();
+        } catch (e) {}
+        revokeVoiceAudioObjectUrl(aud);
+        aud.removeAttribute("src");
+        voiceNotePlayerSrc = null;
+        try {
+          aud.load();
+        } catch (e2) {}
+        aud.hidden = true;
+      } else {
+        aud.hidden = false;
+        if (voiceNotePlayerSrc !== state.voiceNote) {
+          voiceNotePlayerSrc = state.voiceNote;
+          setVoiceAudioElementSrc(aud, state.voiceNote);
+          aud.muted = false;
+          try {
+            aud.volume = 1;
+          } catch (eVol) {}
+          try {
+            aud.load();
+          } catch (e3) {}
+        }
       }
     }
   }
@@ -251,6 +413,10 @@
   }
 
   function startBrowserVoiceRecording() {
+    if (!state.settings.microphoneEnabled) {
+      showToast("Turn on the microphone in Settings to record a voice note.");
+      return;
+    }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       showToast(
         "Voice needs the app or a browser that supports microphone recording."
@@ -314,6 +480,8 @@
   var browserVoiceRecorder = null;
   var browserVoiceChunks = null;
   var browserVoiceStream = null;
+  /** Last data URL bound to #voice-note-playback (avoid resetting src every tick). */
+  var voiceNotePlayerSrc = null;
 
   var state = {
     settings: loadSettings(),
@@ -329,10 +497,10 @@
     voiceRecording: false,
     detailConcernId: null,
     map: null,
+    /** Dim outside city + boundary stroke (below markers). */
+    phlBackdropLayer: null,
     userLayer: null,
-    cityLayer: null,
     lastPosition: null,
-    city311Cache: null,
   };
 
   window.__FLICK_APPLY_NATIVE_LOCATION = function () {
@@ -376,6 +544,7 @@
     $("set-dark").checked = state.settings.darkMode;
     $("set-location").checked = state.settings.locationEnabled;
     $("set-camera").checked = state.settings.cameraEnabled;
+    $("set-microphone").checked = state.settings.microphoneEnabled;
   }
 
   function requestLocation() {
@@ -500,36 +669,69 @@
   function buildCategorySelect(selected) {
     var sel = $("field-category");
     sel.innerHTML = "";
+    var want = resolveCategoryFromAi(selected || "other");
     CATEGORIES.forEach(function (c) {
       var o = document.createElement("option");
       o.value = c.value;
       o.textContent = c.label;
       sel.appendChild(o);
     });
-    if (selected) sel.value = selected;
+    sel.value = want;
   }
 
-  function renderDynamicFields(fields) {
+  function renderDynamicFields(category, fields) {
     var wrap = $("field-dynamic");
     wrap.innerHTML = "";
-    if (!fields || typeof fields !== "object") return;
-    Object.keys(fields).forEach(function (key) {
-      if (
-        key === "category" ||
-        key === "description" ||
-        key === "location"
-      ) {
-        return;
-      }
+    var schema = getSchemaForCategory(category || "other");
+    if (!schema.fields || !schema.fields.length) return;
+    fields = fields && typeof fields === "object" ? fields : {};
+    schema.fields.forEach(function (def) {
       var lab = document.createElement("label");
-      lab.textContent = key.replace(/_/g, " ");
-      var input = document.createElement("input");
-      input.type = "text";
-      input.name = "dyn_" + key;
-      input.dataset.fieldKey = key;
-      input.value =
-        fields[key] == null ? "" : String(fields[key]);
-      lab.appendChild(input);
+      lab.className = "dynamic-field-label";
+      var headRow = document.createElement("span");
+      headRow.className = "dynamic-field-heading-row";
+      var head = document.createElement("span");
+      head.className = "dynamic-field-heading";
+      head.textContent = def.label;
+      var tag = document.createElement("span");
+      tag.className = def.required
+        ? "field-tag field-tag-required"
+        : "field-tag field-tag-optional";
+      tag.textContent = def.required ? "Required" : "Optional";
+      headRow.appendChild(head);
+      headRow.appendChild(tag);
+      lab.appendChild(headRow);
+      if (def.hint) {
+        var h = document.createElement("span");
+        h.className = "field-hint";
+        h.textContent = def.hint;
+        lab.appendChild(h);
+      }
+      var val =
+        fields[def.key] == null ? "" : String(fields[def.key]);
+      var ctrl;
+      if (def.type === "select" && def.options && def.options.length) {
+        ctrl = document.createElement("select");
+        var blank = document.createElement("option");
+        blank.value = "";
+        blank.textContent = def.required ? "Select…" : "—";
+        ctrl.appendChild(blank);
+        def.options.forEach(function (opt) {
+          var o = document.createElement("option");
+          o.value = opt;
+          o.textContent = opt;
+          ctrl.appendChild(o);
+        });
+        ctrl.value = val && def.options.indexOf(val) >= 0 ? val : "";
+      } else {
+        ctrl = document.createElement("input");
+        ctrl.type = "text";
+        ctrl.autocomplete = "off";
+        ctrl.value = val;
+      }
+      ctrl.dataset.fieldKey = def.key;
+      ctrl.dataset.fieldRequired = def.required ? "1" : "0";
+      lab.appendChild(ctrl);
       wrap.appendChild(lab);
     });
   }
@@ -537,12 +739,69 @@
   function collectDynamicFields() {
     var out = {};
     $("field-dynamic")
-      .querySelectorAll("input[data-field-key]")
-      .forEach(function (inp) {
-        var k = inp.dataset.fieldKey;
-        if (k) out[k] = inp.value.trim();
+      .querySelectorAll("[data-field-key]")
+      .forEach(function (el) {
+        var k = el.dataset.fieldKey;
+        if (k) out[k] = (el.value || "").trim();
       });
     return out;
+  }
+
+  function updateDescriptionRequiredHint() {
+    var el = $("report-description-hint");
+    if (!el) return;
+    var s = getSchemaForCategory($("field-category").value);
+    el.innerHTML = "";
+    var t = document.createElement("span");
+    t.className = s.descriptionRequired
+      ? "field-tag field-tag-required"
+      : "field-tag field-tag-optional";
+    t.textContent = s.descriptionRequired ? "Required" : "Optional";
+    el.appendChild(t);
+    el.appendChild(
+      document.createTextNode(
+        s.descriptionRequired
+          ? " — general description for city staff."
+          : " — add details if helpful."
+      )
+    );
+  }
+
+  function updatePrimaryPhotoNote() {
+    var n = $("report-primary-photo-note");
+    if (!n) return;
+    n.hidden = !state.slots.some(Boolean);
+  }
+
+  function validateReportBeforeCommit() {
+    var category = $("field-category").value;
+    var schema = getSchemaForCategory(category);
+    var loc = $("field-location").value.trim();
+    if (!loc) {
+      return "Address (Location) is required.";
+    }
+    var desc = $("field-description").value.trim();
+    if (schema.descriptionRequired && !desc) {
+      return "Description is required for this request type.";
+    }
+    var missingLabel = "";
+    $("field-dynamic")
+      .querySelectorAll("[data-field-key]")
+      .forEach(function (el) {
+        if (el.dataset.fieldRequired !== "1") return;
+        if (missingLabel) return;
+        var v = (el.value || "").trim();
+        if (!v) {
+          var key = el.dataset.fieldKey;
+          schema.fields.forEach(function (f) {
+            if (f.key === key) missingLabel = f.label;
+          });
+        }
+      });
+    if (missingLabel) {
+      return "Please fill required field: " + missingLabel + ".";
+    }
+    return null;
   }
 
   function clearSlot(index) {
@@ -606,8 +865,163 @@
   }
 
   var video = $("camera-preview");
+  var previewWrap = $("camera-preview-wrap");
+
+  /** 'hw' = MediaStreamTrack.applyConstraints(zoom); 'sw' = center crop + CSS scale */
+  var cameraPinchMode = null;
+  var cameraHwZoomMin = 1;
+  var cameraHwZoomMax = 1;
+  var cameraHwZoom = 1;
+  /** Software zoom multiplier 1–4 (Android WebView often omits caps.zoom). */
+  var cameraSwScale = 1;
+  var cameraPinchActive = false;
+  var cameraPinchStartDist = 0;
+  var cameraPinchStartValue = 1;
+
+  function getActiveVideoTrack() {
+    if (!state.stream) return null;
+    var tracks = state.stream.getVideoTracks();
+    return tracks.length ? tracks[0] : null;
+  }
+
+  function touchDistance(touches) {
+    if (!touches || touches.length < 2) return 0;
+    var dx = touches[0].clientX - touches[1].clientX;
+    var dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function applyHardwareZoomValue(z) {
+    var track = getActiveVideoTrack();
+    if (!track || cameraPinchMode !== "hw") return;
+    if (z < cameraHwZoomMin) z = cameraHwZoomMin;
+    if (z > cameraHwZoomMax) z = cameraHwZoomMax;
+    cameraHwZoom = z;
+    var p = track.applyConstraints({ advanced: [{ zoom: z }] });
+    if (p && typeof p.catch === "function") {
+      p.catch(function () {
+        return track.applyConstraints({ zoom: z });
+      }).catch(function () {});
+    }
+  }
+
+  function setSoftwareZoomVisual(scale) {
+    if (!video) return;
+    if (scale < 1) scale = 1;
+    if (scale > 4) scale = 4;
+    cameraSwScale = scale;
+    if (scale <= 1) {
+      video.style.transform = "";
+      video.style.transformOrigin = "";
+    } else {
+      video.style.transform = "scale(" + scale + ")";
+      video.style.transformOrigin = "center center";
+    }
+  }
+
+  function onCameraPinchStart(e) {
+    if (useNativeCapture() || !state.stream || !previewWrap) return;
+    if (e.touches.length !== 2) return;
+    cameraPinchActive = true;
+    cameraPinchStartDist = touchDistance(e.touches);
+    if (cameraPinchStartDist < 8) cameraPinchStartDist = 8;
+    if (cameraPinchMode === "hw") {
+      var track = getActiveVideoTrack();
+      var st = {};
+      try {
+        st = (track && track.getSettings && track.getSettings()) || {};
+      } catch (e2) {}
+      cameraPinchStartValue =
+        st.zoom != null && !isNaN(st.zoom) ? st.zoom : cameraHwZoom;
+    } else {
+      cameraPinchStartValue = cameraSwScale;
+    }
+  }
+
+  function onCameraPinchMove(e) {
+    if (!cameraPinchActive || e.touches.length < 2) return;
+    if (useNativeCapture() || !state.stream) return;
+    var dist = touchDistance(e.touches);
+    if (dist < 1) return;
+    e.preventDefault();
+    var ratio = dist / cameraPinchStartDist;
+    if (ratio < 0.2) ratio = 0.2;
+    if (ratio > 5) ratio = 5;
+    if (cameraPinchMode === "hw") {
+      var nz = cameraPinchStartValue * ratio;
+      applyHardwareZoomValue(nz);
+    } else {
+      setSoftwareZoomVisual(cameraPinchStartValue * ratio);
+    }
+  }
+
+  function onCameraPinchEnd(e) {
+    if (!e.touches || e.touches.length < 2) {
+      cameraPinchActive = false;
+    }
+  }
+
+  function teardownCameraPinchZoom() {
+    if (previewWrap && previewWrap.dataset.flickPinchBound === "1") {
+      previewWrap.removeEventListener("touchstart", onCameraPinchStart);
+      previewWrap.removeEventListener("touchmove", onCameraPinchMove);
+      previewWrap.removeEventListener("touchend", onCameraPinchEnd);
+      previewWrap.removeEventListener("touchcancel", onCameraPinchEnd);
+      delete previewWrap.dataset.flickPinchBound;
+    }
+    cameraPinchActive = false;
+    cameraPinchMode = null;
+    setSoftwareZoomVisual(1);
+    cameraHwZoom = 1;
+  }
+
+  function setupCameraPinchZoom(stream) {
+    teardownCameraPinchZoom();
+    if (!previewWrap || useNativeCapture()) return;
+    var track = stream.getVideoTracks()[0];
+    if (!track) return;
+    var caps = null;
+    try {
+      caps = typeof track.getCapabilities === "function" ? track.getCapabilities() : null;
+    } catch (e) {}
+    if (
+      caps &&
+      caps.zoom != null &&
+      typeof caps.zoom === "object" &&
+      caps.zoom.max != null &&
+      caps.zoom.min != null &&
+      caps.zoom.max > caps.zoom.min
+    ) {
+      cameraPinchMode = "hw";
+      cameraHwZoomMin = caps.zoom.min;
+      cameraHwZoomMax = caps.zoom.max;
+      var settings = {};
+      try {
+        settings = track.getSettings() || {};
+      } catch (e2) {}
+      cameraHwZoom =
+        settings.zoom != null ? settings.zoom : cameraHwZoomMin;
+    } else {
+      cameraPinchMode = "sw";
+      setSoftwareZoomVisual(1);
+    }
+    previewWrap.addEventListener("touchstart", onCameraPinchStart, {
+      passive: true,
+    });
+    previewWrap.addEventListener("touchmove", onCameraPinchMove, {
+      passive: false,
+    });
+    previewWrap.addEventListener("touchend", onCameraPinchEnd, {
+      passive: true,
+    });
+    previewWrap.addEventListener("touchcancel", onCameraPinchEnd, {
+      passive: true,
+    });
+    previewWrap.dataset.flickPinchBound = "1";
+  }
 
   function stopCamera() {
+    teardownCameraPinchZoom();
     if (state.stream) {
       state.stream.getTracks().forEach(function (t) {
         t.stop();
@@ -655,6 +1069,16 @@
           video.srcObject = stream;
           video.hidden = false;
           updateCameraOverlay("live");
+          var pinchSetupDone = false;
+          function setupPinchOnce() {
+            if (pinchSetupDone || state.stream !== stream) return;
+            pinchSetupDone = true;
+            setupCameraPinchZoom(stream);
+          }
+          video.addEventListener("loadedmetadata", setupPinchOnce, {
+            once: true,
+          });
+          setTimeout(setupPinchOnce, 400);
         })
         .catch(function () {
           tryNext();
@@ -685,11 +1109,24 @@
 
   function captureFrameDataUrl() {
     if (!state.stream || !video.videoWidth) return null;
+    var vw = video.videoWidth;
+    var vh = video.videoHeight;
     var c = document.createElement("canvas");
-    c.width = video.videoWidth;
-    c.height = video.videoHeight;
     var ctx = c.getContext("2d");
-    ctx.drawImage(video, 0, 0);
+    var z = cameraPinchMode === "sw" ? cameraSwScale : 1;
+    if (z <= 1 || isNaN(z)) {
+      c.width = vw;
+      c.height = vh;
+      ctx.drawImage(video, 0, 0);
+    } else {
+      var cw = vw / z;
+      var ch = vh / z;
+      var sx = (vw - cw) / 2;
+      var sy = (vh - ch) / 2;
+      c.width = cw;
+      c.height = ch;
+      ctx.drawImage(video, sx, sy, cw, ch, 0, 0, cw, ch);
+    }
     return c.toDataURL("image/jpeg", 0.85);
   }
 
@@ -716,7 +1153,9 @@
     buildCategorySelect(opts.category || "other");
     $("field-description").value = opts.description || "";
     $("field-location").value = opts.location || "";
-    renderDynamicFields(opts.fields || {});
+    renderDynamicFields($("field-category").value, opts.fields || {});
+    updateDescriptionRequiredHint();
+    updatePrimaryPhotoNote();
     $("report-offline-note").hidden = !opts.manualFallback;
 
     var triage = $("report-ai-triage");
@@ -760,20 +1199,71 @@
     $("btn-report-cancel").textContent = "Cancel";
   }
 
-  function geminiPromptText() {
+  function geminiCategoryFieldsAppendix(hasVoice) {
+    var schemas =
+      typeof window !== "undefined" && window.__FLICK_CATEGORY_SCHEMAS
+        ? window.__FLICK_CATEGORY_SCHEMAS
+        : null;
+    if (!schemas) return "";
+    var lines = [];
+    Object.keys(schemas).forEach(function (cat) {
+      var s = schemas[cat];
+      if (!s || !s.fields || !s.fields.length) return;
+      var parts = s.fields.map(function (f) {
+        return (
+          f.key +
+          (f.required
+            ? " (required—fill when observable)"
+            : " (optional—fill when clearly inferable)")
+        );
+      });
+      lines.push(cat + ": " + parts.join(", "));
+    });
+    if (!lines.length) return "";
+    var conflictRule = hasVoice
+      ? " When a voice recording was provided and it conflicts with the photos on any fact, follow the voice for that fact, then set dropdowns to match the narrative you chose (voice wins every such conflict)."
+      : " Set the dropdown to match what you state in prose and what the image shows.";
+    return (
+      "Field keys by category (use these exact keys in `fields` for the category you choose). " +
+      "Populate required keys whenever the photos, voice, or context support them. " +
+      "Also populate OPTIONAL keys whenever there is clear evidence—do not skip optional fields if you can reasonably infer them (e.g. vehicle color, presence of debris, time of day mentioned in audio). " +
+      "For yes/no style questions use exactly \"Yes\" or \"No\" when those match dropdown options. " +
+      "CRITICAL: Every dropdown/select value in `fields` must use one of the EXACT option strings from the catalog for that key (including punctuation and em dashes). " +
+      "CRITICAL: `description`, `location`, and all `fields` values must agree with each other—never write in `description` that there is water (or gas, etc.) in a pothole if `running_water` (or `gas_escaping`) is \"No\";" +
+      conflictRule +
+      "\n\n" +
+      lines.join("\n")
+    );
+  }
+
+  function geminiPromptText(hasVoice) {
+    var appendix = geminiCategoryFieldsAppendix(!!hasVoice);
+    var mediaInstructions = hasVoice
+      ? "The resident’s voice audio is attached in the message immediately after this text (before any images). Listen to the entire recording. Use photos for supporting detail, but whenever spoken words and a photo disagree on any factual point—what the problem is, category, location, severity, water or gas, or what object is shown—the VOICE is authoritative: set category, description, location, and every `fields` value to match what they said. If the voice is silent on something visible in a photo and the photo does not contradict the voice, you may include that detail.\n"
+      : "Use every image and the full voice audio if provided (voice may describe the issue when photos are missing or unclear).\n";
     return (
       "You classify Philadelphia 311-style civic issues from the user’s photos, optional voice note, and location hint.\n" +
-      "Use every image and the full voice audio if provided (voice may describe the issue when photos are missing or unclear).\n" +
+      mediaInstructions +
       "Also judge whether this is worth submitting to the city at all.\n" +
+      "Before returning JSON, mentally check: the free-text `description` must not contradict any structured `fields` value (e.g. if you mention water pooling in the pothole, `running_water` must be the \"Yes — call Water Emergency…\" option, not \"No\").\n" +
       "Return ONLY a single JSON object (no markdown) with exactly these keys:\n" +
-      '"category" (string, one of: illegal_dumping, pothole, broken_streetlight, graffiti, abandoned_vehicle, sidewalk_defect, traffic_signal, noise_complaint, missed_collection, water_issue, other),\n' +
-      '"description" (string, concise professional report for city staff),\n' +
+      '"category" (string, one of: ' +
+      CATEGORIES.map(function (c) {
+        return c.value;
+      }).join(", ") +
+      "),\n" +
+      '"description" (string, concise professional report for city staff; must be consistent with every `fields` dropdown you output),\n' +
       '"location" (string, human-readable Philadelphia address, intersection, or neighborhood; match the device hint when provided; if truly unknown use Unknown Philadelphia location—not Location to be confirmed),\n' +
-      '"fields" (object: optional extra strings relevant to the issue, e.g. approximate_size, safety_hazard, debris_type),\n' +
+      '"fields" (object: string values only. For your chosen category, use ONLY the keys listed for that category in the catalog at the end of this prompt. Each value must be an exact catalog option where the catalog shows (required/optional) after a select-style key. Fill required keys when observable; actively fill OPTIONAL keys too when images, voice, or context give reasonable evidence. Use exact key names; omit only keys you cannot infer. Narrative and structured answers must match' +
+      (hasVoice
+        ? "; if voice and images conflict, derive fields from the voice."
+        : "") +
+      "),\n" +
       '"worth_submitting" (boolean: true only if photos and/or voice describe a clear, actionable civic issue 311 could address in Philadelphia — false for selfies, memes, blank/blurry/unusable photos, silence or unrelated audio, purely private indoor matters, obvious jokes, off-topic content, or nothing that sounds or looks like infrastructure, sanitation, safety, or public-space problems),\n' +
       '"submission_advice" (string: one short sentence to the resident explaining why it is or is not worth sending to 311).\n' +
       "Location hint from user device:\n" +
-      locationHint()
+      locationHint() +
+      (appendix ? "\n\n" + appendix : "")
     );
   }
 
@@ -837,7 +1327,16 @@
   }
 
   function geminiRequestOne(modelId, key, imageDataUrls, voiceDataUrl, jsonMode) {
-    var parts = [{ text: geminiPromptText() }];
+    var hasVoice = !!(voiceDataUrl && String(voiceDataUrl).trim());
+    var parts = [{ text: geminiPromptText(hasVoice) }];
+    if (hasVoice) {
+      parts.push({
+        inlineData: {
+          mimeType: mimeFromDataUrl(voiceDataUrl),
+          data: dataUrlToBase64(voiceDataUrl),
+        },
+      });
+    }
     imageDataUrls.forEach(function (url) {
       parts.push({
         inlineData: {
@@ -846,14 +1345,6 @@
         },
       });
     });
-    if (voiceDataUrl) {
-      parts.push({
-        inlineData: {
-          mimeType: mimeFromDataUrl(voiceDataUrl),
-          data: dataUrlToBase64(voiceDataUrl),
-        },
-      });
-    }
     var gen = { temperature: 0.35, maxOutputTokens: 2048 };
     if (jsonMode) {
       gen.responseMimeType = "application/json";
@@ -897,6 +1388,46 @@
     });
   }
 
+  /**
+   * If the model still contradicts itself (e.g. description says water in pothole but running_water is No),
+   * align dropdowns to the narrative when the wording is unambiguous.
+   */
+  function reconcileAiFieldsWithNarrative(category, description, fields) {
+    if (!fields || typeof fields !== "object") return;
+    var desc = description || "";
+    if (category !== "pothole_repair") return;
+
+    var waterNeg =
+      /\b(no water|dry(\s+hole|\s+pothole)?|no standing water|not flooded|no visible water|absent water)\b/i.test(
+        desc
+      );
+    var waterPos =
+      /\b(water in (the )?(pothole|hole)|standing water|pooling|filled with water|waterlogged|wet (pavement|asphalt)|puddle in (the )?(hole|pothole)|flooded (pothole|hole)|running water)\b/i.test(
+        desc
+      );
+    var rw = fields.running_water;
+    if (waterPos && !waterNeg && rw === "No") {
+      fields.running_water =
+        "Yes — call Water Emergency 215-685-6300";
+    }
+    if (waterNeg && rw && /^Yes/i.test(String(rw))) {
+      fields.running_water = "No";
+    }
+
+    var gasNeg = /\b(no gas|no smell of gas)\b/i.test(desc);
+    var gasPos =
+      /\b(gas escaping|smell of gas|natural gas|gas leak|hissing\b.*\b(hole|pothole))\b/i.test(
+        desc
+      );
+    var gas = fields.gas_escaping;
+    if (gasPos && !gasNeg && gas === "No") {
+      fields.gas_escaping = "Yes — call 911";
+    }
+    if (gasNeg && gas && /^Yes/i.test(String(gas))) {
+      fields.gas_escaping = "No";
+    }
+  }
+
   function normalizeAiParsed(parsed) {
     var ws =
       parsed.worth_submitting !== undefined &&
@@ -904,14 +1435,17 @@
         ? parsed.worth_submitting
         : parsed.worthSubmitting;
     var worth = ws === false ? false : true;
+    var cat = resolveCategoryFromAi(parsed.category || "other");
+    var fields = Object.assign(
+      {},
+      parsed.fields && typeof parsed.fields === "object" ? parsed.fields : {}
+    );
+    reconcileAiFieldsWithNarrative(cat, parsed.description || "", fields);
     return {
-      category: parsed.category || "other",
+      category: cat,
       description: parsed.description || "",
       location: parsed.location || "",
-      fields:
-        parsed.fields && typeof parsed.fields === "object"
-          ? parsed.fields
-          : {},
+      fields: fields,
       worthSubmitting: worth,
       submissionAdvice:
         typeof parsed.submission_advice === "string"
@@ -961,7 +1495,7 @@
         postNative({
           type: "GEMINI_GENERATE_META",
           requestId: requestId,
-          prompt: geminiPromptText(),
+          prompt: geminiPromptText(!!(audio && audio.data)),
           imageCount: images.length,
           expectAudio: !!(audio && audio.data),
         });
@@ -990,7 +1524,7 @@
         postNative({
           type: "GEMINI_GENERATE",
           requestId: requestId,
-          prompt: geminiPromptText(),
+          prompt: geminiPromptText(!!(audio && audio.data)),
           images: images,
           audio: audio,
         });
@@ -1117,8 +1651,9 @@
     var dyn = collectDynamicFields();
     var images = state.slots.filter(Boolean);
 
-    if (!description) {
-      showToast("Please add a description.");
+    var validationMsg = validateReportBeforeCommit();
+    if (validationMsg) {
+      showToast(validationMsg);
       return;
     }
 
@@ -1155,6 +1690,9 @@
         itemAi.lng = lngU;
       }
       itemAi.voiceNote = u.voiceNote || null;
+      if (itemAi.images && itemAi.images.length) {
+        itemAi.primaryPhotoIndex = 0;
+      }
       listAi.push(itemAi);
       saveRequests(listAi);
     } else if (id) {
@@ -1213,6 +1751,9 @@
             ? state.voiceNote
             : null,
       };
+      if (images.length) {
+        item.primaryPhotoIndex = 0;
+      }
       if (lat != null && lng != null) {
         item.lat = lat;
         item.lng = lng;
@@ -1271,14 +1812,19 @@
 
     var vw = $("detail-voice-wrap");
     if (vw) {
+      var prevAud = vw.querySelector("audio");
+      if (prevAud) revokeVoiceAudioObjectUrl(prevAud);
       vw.innerHTML = "";
       if (r.voiceNote && String(r.voiceNote).indexOf("data:") === 0) {
         vw.hidden = false;
         var aud = document.createElement("audio");
         aud.controls = true;
         aud.className = "detail-audio";
-        aud.src = r.voiceNote;
+        setVoiceAudioElementSrc(aud, r.voiceNote);
         aud.setAttribute("aria-label", "Voice note");
+        aud.addEventListener("play", function () {
+          requestNativeSpeakerForVoicePlayback();
+        });
         vw.appendChild(aud);
       } else {
         vw.hidden = true;
@@ -1499,6 +2045,55 @@
     [40.14, -74.92]
   );
 
+  /**
+   * City limits GeoJSON (EPSG:4326) is injected as window.__FLICK_PHILLY_LIMITS__
+   * from public/philly-city-limits.json (generalized City of Philadelphia boundary).
+   */
+  function getPhillyCityRingLatLng() {
+    try {
+      var g = window.__FLICK_PHILLY_LIMITS__;
+      if (!g || !g.features || !g.features.length) return null;
+      var geom = g.features[0].geometry;
+      var ring = null;
+      if (geom.type === "Polygon") ring = geom.coordinates[0];
+      else if (geom.type === "MultiPolygon") ring = geom.coordinates[0][0];
+      if (!ring || ring.length < 4) return null;
+      return ring.map(function (c) {
+        return [c[1], c[0]];
+      });
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function addPhillyMapBackdrop() {
+    if (!state.map || state.phlBackdropLayer) return;
+    var hole = getPhillyCityRingLatLng();
+    if (!hole) return;
+    var outer = [
+      [90, -360],
+      [90, 360],
+      [-90, 360],
+      [-90, -360],
+    ];
+    var mask = L.polygon([outer, hole], {
+      stroke: false,
+      fill: true,
+      fillColor: "#0a1628",
+      fillOpacity: 0.78,
+      interactive: false,
+    });
+    var outline = L.polygon(hole, {
+      stroke: true,
+      color: "#d4af37",
+      weight: 2.5,
+      opacity: 0.92,
+      fill: false,
+      interactive: false,
+    });
+    state.phlBackdropLayer = L.layerGroup([mask, outline]).addTo(state.map);
+  }
+
   function initMapIfNeeded() {
     if (state.map || typeof L === "undefined") return;
     state.map = L.map("map", {
@@ -1513,51 +2108,9 @@
       maxZoom: 19,
       attribution: "&copy; OpenStreetMap",
     }).addTo(state.map);
+    addPhillyMapBackdrop();
     state.userLayer = L.layerGroup().addTo(state.map);
-    state.cityLayer = L.layerGroup().addTo(state.map);
     state.map.setView([39.9526, -75.1652], 12);
-  }
-
-  /** Live CARTO SQL only — Open + no close time = not completed; Closed excluded. */
-  var PHILLY_311_ROW_LIMIT = 8000;
-  var PHILLY_311_SQL =
-    "SELECT lat, lon, service_name, requested_datetime FROM public_cases_fc WHERE requested_datetime >= NOW() - INTERVAL '90 days' AND status = 'Open' AND closed_datetime IS NULL AND lat IS NOT NULL AND lon IS NOT NULL ORDER BY requested_datetime DESC LIMIT " +
-    PHILLY_311_ROW_LIMIT;
-
-  function fetchPhilly311Rows() {
-    var url =
-      "https://phl.carto.com/api/v2/sql?format=json&q=" +
-      encodeURIComponent(PHILLY_311_SQL);
-    return fetch(url).then(function (res) {
-      return res.json().then(function (data) {
-        if (data.error) {
-          var em =
-            typeof data.error === "string"
-              ? data.error
-              : data.error.message || JSON.stringify(data.error);
-          throw new Error(em);
-        }
-        return data.rows || [];
-      });
-    });
-  }
-
-  function fetchCity311WithCache() {
-    var ttlMs = 8 * 60 * 1000;
-    var cacheVer = 3;
-    var now = Date.now();
-    if (
-      state.city311Cache &&
-      state.city311Cache.rows &&
-      state.city311Cache.ver === cacheVer &&
-      now - state.city311Cache.ts < ttlMs
-    ) {
-      return Promise.resolve(state.city311Cache.rows);
-    }
-    return fetchPhilly311Rows().then(function (rows) {
-      state.city311Cache = { ts: Date.now(), rows: rows, ver: cacheVer };
-      return rows;
-    });
   }
 
   function clampLatLngToPhilly(lat, lng) {
@@ -1569,8 +2122,8 @@
     ];
   }
 
-  function fitMapBounds(userPts, cityPts) {
-    var all = userPts.slice().concat(cityPts);
+  function fitMapBoundsLocal(userPts) {
+    var all = userPts.slice();
     if (!all.length) {
       state.map.setView([39.9526, -75.1652], 12);
       return;
@@ -1583,9 +2136,9 @@
     state.map.fitBounds(all, { padding: [28, 28], maxZoom: 14 });
   }
 
-  function orientMapToUserOrFit(userPts, cityPts) {
+  function orientMapToUserOrFitLocal(userPts) {
     if (!state.settings.locationEnabled || !navigator.geolocation) {
-      fitMapBounds(userPts, cityPts);
+      fitMapBoundsLocal(userPts);
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -1593,7 +2146,7 @@
         var la = pos.coords.latitude;
         var lo = pos.coords.longitude;
         if (la == null || lo == null || isNaN(la) || isNaN(lo)) {
-          fitMapBounds(userPts, cityPts);
+          fitMapBoundsLocal(userPts);
           return;
         }
         var keepLabel =
@@ -1616,7 +2169,7 @@
         }
       },
       function () {
-        fitMapBounds(userPts, cityPts);
+        fitMapBoundsLocal(userPts);
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 15000 }
     );
@@ -1627,10 +2180,15 @@
     if (!state.map) return;
     var requests = loadRequests();
     var withCoords = requests.filter(function (r) {
-      return typeof r.lat === "number" && typeof r.lng === "number";
+      return (
+        concernIsSubmitted(r) &&
+        typeof r.lat === "number" &&
+        typeof r.lng === "number" &&
+        !isNaN(r.lat) &&
+        !isNaN(r.lng)
+      );
     });
     state.userLayer.clearLayers();
-    state.cityLayer.clearLayers();
 
     var userBoundsPts = [];
     var clusters = clusterPoints(withCoords, 0.004);
@@ -1649,7 +2207,7 @@
         popupHtml =
           '<div class="cluster-popup"><strong>' +
           c.items.length +
-          " your reports</strong><ul class=\"cluster-list\">";
+          " submitted</strong><ul class=\"cluster-list\">";
         c.items.forEach(function (it) {
           popupHtml +=
             "<li>" +
@@ -1664,57 +2222,17 @@
         popupHtml =
           "<strong>" +
           categoryLabel(it.category) +
-          "</strong> (yours)<br/>" +
+          "</strong> · submitted<br/>" +
           (it.location || "") +
           "<br/><span style='color:#8fa3bf'>" +
-          concernStatusLabel(it) +
+          formatTime(it.timestamp) +
           "</span>";
       }
       marker.bindPopup(popupHtml, { autoPanPadding: [20, 20] });
       marker.addTo(state.userLayer);
     });
 
-    fetchCity311WithCache()
-      .then(function (rows) {
-        var cityPts = [];
-        rows.forEach(function (row) {
-          if (
-            typeof row.lat !== "number" ||
-            typeof row.lon !== "number" ||
-            isNaN(row.lat) ||
-            isNaN(row.lon)
-          ) {
-            return;
-          }
-          cityPts.push([row.lat, row.lon]);
-          var reqTs = row.requested_datetime
-            ? new Date(row.requested_datetime).getTime()
-            : 0;
-          var when =
-            reqTs && !isNaN(reqTs) ? formatTime(reqTs) : "";
-          var m = L.circleMarker([row.lat, row.lon], {
-            radius: 9,
-            color: "#a8c8ff",
-            weight: 2,
-            fillColor: "#4a7fe8",
-            fillOpacity: 0.65,
-            interactive: true,
-          });
-          m.bindPopup(
-            "<strong>" +
-              (row.service_name || "311 request") +
-              "</strong><br/><span style='color:#8fa3bf'>Open · City 311 · " +
-              when +
-              "</span>",
-            { autoPanPadding: [20, 20] }
-          );
-          m.addTo(state.cityLayer);
-        });
-        orientMapToUserOrFit(userBoundsPts, cityPts);
-      })
-      .catch(function () {
-        orientMapToUserOrFit(userBoundsPts, []);
-      });
+    orientMapToUserOrFitLocal(userBoundsPts);
   }
 
   function showScreen(name) {
@@ -1905,6 +2423,12 @@
     e.preventDefault();
   });
 
+  $("field-category").addEventListener("change", function () {
+    var cur = collectDynamicFields();
+    renderDynamicFields($("field-category").value, cur);
+    updateDescriptionRequiredHint();
+  });
+
   $("btn-report-save").addEventListener("click", function () {
     commitReportModal("saved");
   });
@@ -1952,9 +2476,13 @@
     }
   });
 
-  $("btn-camera-permission").addEventListener("click", function () {
-    postNative({ type: "REQUEST_CAMERA_PERMISSION" });
-    showToast("Asking for camera access…");
+  $("set-microphone").addEventListener("change", function () {
+    state.settings.microphoneEnabled = $("set-microphone").checked;
+    saveSettings(state.settings);
+    if (!state.settings.microphoneEnabled) {
+      stopVoiceRecordingIfActive();
+    }
+    updateVoiceUi();
   });
 
   $("btn-open-app-settings").addEventListener("click", function () {
@@ -1968,11 +2496,11 @@
     }
     localStorage.removeItem(STORAGE_REQUESTS);
     localStorage.removeItem(STORAGE_SETTINGS);
-    state.city311Cache = null;
     state.settings = {
       darkMode: true,
       locationEnabled: true,
       cameraEnabled: true,
+      microphoneEnabled: true,
     };
     saveSettings(state.settings);
     syncSettingsUI();
@@ -1997,6 +2525,10 @@
       }
       return;
     }
+    if (!state.settings.microphoneEnabled) {
+      showToast("Turn on the microphone in Settings to record.");
+      return;
+    }
     if (useNativeVoiceBridge()) {
       postNative({ type: "VOICE_RECORD_TOGGLE" });
     } else {
@@ -2008,6 +2540,8 @@
     state.voiceNote = null;
     updateVoiceUi();
   });
+
+  ensureVoicePlaybackSpeakerHook();
 
   applyTheme();
   syncSettingsUI();

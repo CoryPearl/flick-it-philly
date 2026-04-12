@@ -343,6 +343,7 @@ body.light .request-card {
   overflow: hidden;
   background: #000;
   border: 1px solid rgba(212, 175, 55, 0.2);
+  touch-action: none;
 }
 
 .camera-preview {
@@ -433,13 +434,32 @@ body.light .request-card {
   display: none !important;
 }
 
+.voice-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.35rem 0.25rem 0;
+  flex-shrink: 0;
+}
+
 .voice-row {
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.35rem 0.25rem 0;
-  flex-shrink: 0;
   flex-wrap: wrap;
+}
+
+.voice-playback {
+  width: 100%;
+  max-width: 100%;
+  height: 40px;
+  margin: 0;
+  border-radius: 10px;
+  vertical-align: middle;
+}
+
+.voice-playback[hidden] {
+  display: none !important;
 }
 
 .voice-row .ctrl-btn.voice-btn {
@@ -499,6 +519,11 @@ body.light .request-card {
   background: linear-gradient(145deg, var(--gold-dim), var(--gold));
   color: var(--bg);
   border-color: transparent;
+}
+
+.ctrl-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .capture-btn {
@@ -885,6 +910,75 @@ body.light .report-form textarea {
 
 .dynamic-fields label {
   font-weight: 500;
+}
+
+.dynamic-field-label {
+  gap: 0.25rem !important;
+}
+
+.dynamic-field-heading-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.5rem;
+}
+
+.dynamic-field-heading {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.field-tag {
+  display: inline-block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.12rem 0.35rem;
+  border-radius: 4px;
+}
+
+.field-tag-required {
+  background: rgba(212, 175, 55, 0.2);
+  color: var(--gold);
+}
+
+.field-tag-optional {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+}
+
+.field-hint {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: var(--muted);
+  line-height: 1.35;
+  margin: 0.1rem 0 0.15rem;
+}
+
+.form-field-meta {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.form-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.4;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  background: rgba(212, 175, 55, 0.08);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+.form-hint[hidden] {
+  display: none !important;
 }
 
 .note {
