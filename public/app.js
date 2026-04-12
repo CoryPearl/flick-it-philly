@@ -4,6 +4,8 @@
   var STORAGE_REQUESTS = "flick_requests";
   var STORAGE_SETTINGS = "flick_settings";
 
+  var demo311PollTimer = null;
+
   var CATEGORIES_FALLBACK = [{ value: "other", label: "Other" }];
 
   function flickCategoriesList() {
@@ -101,6 +103,171 @@
     localStorage.setItem(STORAGE_REQUESTS, JSON.stringify(list));
   }
 
+  function normalize311BaseUrl(s) {
+    if (!s || typeof s !== "string") return "";
+    return s.trim().replace(/\/+$/, "");
+  }
+
+  function get311DemoUrl() {
+    try {
+      if (
+        typeof window !== "undefined" &&
+        window.__FLICK_311_DEMO_URL__ != null
+      ) {
+        var s = String(window.__FLICK_311_DEMO_URL__).trim();
+        if (s) return normalize311BaseUrl(s);
+      }
+    } catch (e) {}
+    return "";
+  }
+
+  function stop311DemoPoll() {
+    if (demo311PollTimer) {
+      clearInterval(demo311PollTimer);
+      demo311PollTimer = null;
+    }
+  }
+
+  function start311DemoPoll() {
+    stop311DemoPoll();
+    if (!get311DemoUrl()) return;
+    demo311PollTimer = setInterval(sync311DemoFromServer, 12000);
+  }
+
+  var DEMO311_MAX_IMAGES = 8;
+  var DEMO311_MAX_IMAGE_CHARS = 1800000;
+  var DEMO311_MAX_VOICE_CHARS = 2800000;
+
+  function build311DemoPayload(r) {
+    var fields = {};
+    if (r.fields && typeof r.fields === "object") {
+      Object.keys(r.fields).forEach(function (k) {
+        fields[k] = String(r.fields[k]).slice(0, 4000);
+      });
+    }
+    var images = [];
+    if (r.images && r.images.length) {
+      for (var i = 0; i < r.images.length && i < DEMO311_MAX_IMAGES; i++) {
+        var u = String(r.images[i] || "");
+        if (u.indexOf("data:") !== 0) continue;
+        if (u.length > DEMO311_MAX_IMAGE_CHARS) {
+          u = u.slice(0, DEMO311_MAX_IMAGE_CHARS);
+        }
+        images.push(u);
+      }
+    }
+    var voiceNote = null;
+    if (r.voiceNote && String(r.voiceNote).indexOf("data:") === 0) {
+      var vn = String(r.voiceNote);
+      voiceNote =
+        vn.length > DEMO311_MAX_VOICE_CHARS
+          ? vn.slice(0, DEMO311_MAX_VOICE_CHARS)
+          : vn;
+    }
+    return {
+      id: r.id,
+      category: r.category || "other",
+      description: String(r.description || "").slice(0, 8000),
+      location: String(r.location || "").slice(0, 1000),
+      timestamp: typeof r.timestamp === "number" ? r.timestamp : Date.now(),
+      lat: typeof r.lat === "number" ? r.lat : null,
+      lng: typeof r.lng === "number" ? r.lng : null,
+      fields: fields,
+      images: images,
+      voiceNote: voiceNote,
+      primaryPhotoIndex:
+        typeof r.primaryPhotoIndex === "number" ? r.primaryPhotoIndex : null,
+      worthSubmitting:
+        typeof r.worthSubmitting === "boolean" ? r.worthSubmitting : null,
+      submissionAdvice: String(r.submissionAdvice || "").slice(0, 4000),
+      manualEntry: r.manualEntry === true,
+      appStatus: String(r.status || "").slice(0, 32),
+    };
+  }
+
+  function pushConcernTo311Demo(r) {
+    var base = get311DemoUrl();
+    if (!base || !r || !r.id) return;
+    function warnReach() {
+      showToast(
+        "Could not reach the demo 311 server. Same Wi‑Fi? Check FLICK_311_DEMO_URL and run npm run 311-demo."
+      );
+    }
+    try {
+      fetch(base + "/api/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(build311DemoPayload(r)),
+        mode: "cors",
+      })
+        .then(function (res) {
+          if (!res.ok) throw new Error("HTTP " + res.status);
+        })
+        .catch(warnReach);
+    } catch (e) {
+      warnReach();
+    }
+  }
+
+  function deleteConcernOn311Demo(id) {
+    var base = get311DemoUrl();
+    if (!base || !id) return;
+    try {
+      fetch(base + "/api/requests/" + encodeURIComponent(id), {
+        method: "DELETE",
+        mode: "cors",
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
+  function sync311DemoFromServer() {
+    var base = get311DemoUrl();
+    if (!base) return;
+    fetch(base + "/api/requests", { method: "GET", cache: "no-store" })
+      .then(function (res) {
+        if (!res.ok) throw new Error("bad");
+        return res.json();
+      })
+      .then(function (data) {
+        var rows = (data && data.requests) || [];
+        var serverById = {};
+        rows.forEach(function (row) {
+          if (row && row.id) {
+            serverById[row.id] =
+              row.dashboardStatus === "completed" ? "completed" : "pending";
+          }
+        });
+        var list = loadRequests();
+        var changed = false;
+        var next = list.map(function (local) {
+          if (!concernIsSubmitted(local)) return local;
+          var sv = serverById[local.id];
+          if (sv === undefined) return local;
+
+          if (sv === "completed") {
+            if (local.status === "completed") return local;
+            changed = true;
+            return Object.assign({}, local, { status: "completed" });
+          }
+          if (local.status === "completed") {
+            changed = true;
+            return Object.assign({}, local, { status: "pending" });
+          }
+          return local;
+        });
+        if (changed) {
+          saveRequests(next);
+          renderHomeList();
+          if (state.map) refreshMap();
+          if (state.detailConcernId) {
+            var dr = getRequestById(state.detailConcernId);
+            if (dr) renderConcernDetail(dr);
+          }
+        }
+      })
+      .catch(function () {});
+  }
+
   function categoryLabel(value) {
     for (var i = 0; i < CATEGORIES.length; i++) {
       if (CATEGORIES[i].value === value) return CATEGORIES[i].label;
@@ -123,19 +290,35 @@
   }
 
   function concernIsSubmitted(r) {
-    return r.status === "submitted" || r.status === "pending";
+    return (
+      r.status === "submitted" ||
+      r.status === "pending" ||
+      r.status === "completed"
+    );
   }
 
   function concernIsSavedOnly(r) {
     return !concernIsSubmitted(r);
   }
 
+  /** False once the demo 311 queue marks this request completed (synced from server). */
+  function concernIsUserEditable(r) {
+    if (!r) return false;
+    return r.status !== "completed";
+  }
+
   function concernStatusLabel(r) {
-    return concernIsSubmitted(r) ? "Submitted" : "Saved";
+    if (r.status === "completed") return "Completed";
+    if (r.status === "pending") return "Pending";
+    if (r.status === "submitted") return "Submitted";
+    return "Saved";
   }
 
   function concernStatusPillClass(r) {
-    return concernIsSubmitted(r) ? "submitted" : "saved";
+    if (r.status === "completed") return "completed";
+    if (r.status === "pending") return "pending";
+    if (r.status === "submitted") return "submitted";
+    return "saved";
   }
 
   function getRequestById(id) {
@@ -146,15 +329,58 @@
     return found;
   }
 
+  function toastTeardown(t) {
+    var sp = $("toast-spinner");
+    t.classList.remove(
+      "toast-persistent",
+      "toast-with-spinner",
+      "toast-hiding"
+    );
+    t.hidden = true;
+    t.removeAttribute("aria-busy");
+    if (sp) sp.hidden = true;
+  }
+
   function hideToast() {
     var t = $("toast");
     var sp = $("toast-spinner");
     clearTimeout(showToast._timer);
     showToast._timer = null;
-    t.hidden = true;
-    t.classList.remove("toast-persistent", "toast-with-spinner");
-    t.removeAttribute("aria-busy");
-    if (sp) sp.hidden = true;
+    if (hideToast._fadeTimer) {
+      clearTimeout(hideToast._fadeTimer);
+      hideToast._fadeTimer = null;
+    }
+    if (hideToast._onTransitionEnd) {
+      t.removeEventListener("transitionend", hideToast._onTransitionEnd);
+      hideToast._onTransitionEnd = null;
+    }
+    if (t.hidden) {
+      toastTeardown(t);
+      return;
+    }
+    if (t.classList.contains("toast-hiding")) {
+      return;
+    }
+    hideToast._onTransitionEnd = function (ev) {
+      if (ev.target !== t || ev.propertyName !== "opacity") return;
+      t.removeEventListener("transitionend", hideToast._onTransitionEnd);
+      hideToast._onTransitionEnd = null;
+      clearTimeout(hideToast._fadeTimer);
+      hideToast._fadeTimer = null;
+      toastTeardown(t);
+    };
+    t.addEventListener("transitionend", hideToast._onTransitionEnd);
+    requestAnimationFrame(function () {
+      t.classList.add("toast-hiding");
+    });
+    hideToast._fadeTimer = setTimeout(function () {
+      if (hideToast._onTransitionEnd) {
+        t.removeEventListener("transitionend", hideToast._onTransitionEnd);
+        hideToast._onTransitionEnd = null;
+      }
+      hideToast._fadeTimer = null;
+      toastTeardown(t);
+    }, 520);
   }
 
   function showToast(msg, opts) {
@@ -162,6 +388,15 @@
     var t = $("toast");
     var msgEl = $("toast-message");
     var sp = $("toast-spinner");
+    if (hideToast._fadeTimer) {
+      clearTimeout(hideToast._fadeTimer);
+      hideToast._fadeTimer = null;
+    }
+    if (hideToast._onTransitionEnd) {
+      t.removeEventListener("transitionend", hideToast._onTransitionEnd);
+      hideToast._onTransitionEnd = null;
+    }
+    t.classList.remove("toast-hiding");
     if (msgEl) {
       msgEl.textContent = msg;
     } else {
@@ -188,7 +423,7 @@
     if (sp) sp.hidden = true;
     t.classList.remove("toast-with-spinner");
     showToast._timer = setTimeout(function () {
-      t.hidden = true;
+      hideToast();
     }, 2800);
   }
 
@@ -381,11 +616,14 @@
     var aud = $("voice-note-playback");
     if (!btn || !clr) return;
     var micOff = !state.settings.microphoneEnabled;
+    var locked = state.aiMediaLocked;
     btn.classList.toggle("is-recording", state.voiceRecording);
     btn.innerHTML = voiceButtonInnerHtml(state.voiceRecording);
-    btn.disabled = micOff && !state.voiceRecording;
+    btn.disabled =
+      (micOff && !state.voiceRecording) ||
+      (locked && !state.voiceRecording);
     var has = !!(state.voiceNote && String(state.voiceNote).trim());
-    clr.hidden = !has;
+    clr.hidden = !has || locked;
     if (st) {
       if (state.voiceRecording) {
         st.hidden = false;
@@ -530,12 +768,16 @@
     voiceNote: null,
     /** true while native inject or browser MediaRecorder is active */
     voiceRecording: false,
+    /** true while AI report is generating — cannot remove photos/voice or start new recording */
+    aiMediaLocked: false,
     detailConcernId: null,
     map: null,
     /** Dim outside city + boundary stroke (below markers). */
     phlBackdropLayer: null,
     userLayer: null,
     lastPosition: null,
+    /** home | camera | settings — kept in sync with showScreen */
+    currentScreen: "camera",
   };
 
   window.__FLICK_APPLY_NATIVE_LOCATION = function () {
@@ -839,7 +1081,16 @@
     return null;
   }
 
+  function setAiMediaLocked(locked) {
+    state.aiMediaLocked = !!locked;
+    var gen = $("btn-generate");
+    if (gen) gen.disabled = state.aiMediaLocked;
+    renderSlots();
+    updateVoiceUi();
+  }
+
   function clearSlot(index) {
+    if (state.aiMediaLocked) return;
     if (index < 0 || index >= state.slots.length) return;
     if (!state.slots[index]) return;
     state.slots[index] = null;
@@ -859,20 +1110,22 @@
         var img = document.createElement("img");
         img.src = state.slots[i];
         img.alt = "Photo " + (i + 1);
-        var rm = document.createElement("button");
-        rm.type = "button";
-        rm.className = "slot-remove";
-        rm.setAttribute("aria-label", "Remove photo");
-        rm.textContent = "×";
-        (function (slotIndex) {
-          rm.addEventListener("click", function (ev) {
-            ev.stopPropagation();
-            ev.preventDefault();
-            clearSlot(slotIndex);
-          });
-        })(i);
         inner.appendChild(img);
-        inner.appendChild(rm);
+        if (!state.aiMediaLocked) {
+          var rm = document.createElement("button");
+          rm.type = "button";
+          rm.className = "slot-remove";
+          rm.setAttribute("aria-label", "Remove photo");
+          rm.textContent = "×";
+          (function (slotIndex) {
+            rm.addEventListener("click", function (ev) {
+              ev.stopPropagation();
+              ev.preventDefault();
+              clearSlot(slotIndex);
+            });
+          })(i);
+          inner.appendChild(rm);
+        }
         d.appendChild(inner);
       } else {
         d.textContent = i + 1;
@@ -1278,7 +1531,7 @@
   function geminiPromptText(hasVoice) {
     var appendix = geminiCategoryFieldsAppendix(!!hasVoice);
     var mediaInstructions = hasVoice
-      ? "The resident’s voice audio is attached in the message immediately after this text (before any images). Listen to the entire recording and use it to fill BOTH the narrative (description, location) AND the structured `fields` object for your chosen category—anything they state that maps to a catalog key must appear in `fields` with the correct exact option text. Use photos for supporting detail, but whenever spoken words and a photo disagree on any factual point—what the problem is, category, location, severity, water or gas, or what object is shown—the VOICE is authoritative: set category, description, location, and every `fields` value to match what they said. If the voice is silent on something visible in a photo and the photo does not contradict the voice, you may include that detail.\n"
+      ? "The resident’s voice recording appears in the message immediately after this text (before any images). Listen to the entire recording and use it to fill BOTH the narrative (description, location) AND the structured `fields` object for your chosen category—anything they state that maps to a catalog key must appear in `fields` with the correct exact option text. Use photos for supporting detail, but whenever spoken words and a photo disagree on any factual point—what the problem is, category, location, severity, water or gas, or what object is shown—the VOICE is authoritative: set category, description, location, and every `fields` value to match what they said. If the voice is silent on something visible in a photo and the photo does not contradict the voice, you may include that detail. Do not tell the user the voice was missing, empty, or “not attached”; work from whatever media is present.\n"
       : "Use every image and the full voice audio if provided (voice may describe the issue when photos are missing or unclear).\n";
     return (
       "You classify Philadelphia 311-style civic issues from the user’s photos, optional voice note, and location hint.\n" +
@@ -1699,7 +1952,9 @@
 
     var id = state.currentDraftId;
     var u = state.uncommittedAiDraft;
-    var statusOut = mode === "submitted" ? "submitted" : "saved";
+    var statusOut = mode === "submitted" ? "pending" : "saved";
+    var submittedIdForSync = null;
+    var editedExistingRequestId = null;
 
     if (u) {
       state.uncommittedAiDraft = null;
@@ -1735,18 +1990,31 @@
       }
       listAi.push(itemAi);
       saveRequests(listAi);
+      if (mode === "submitted") submittedIdForSync = itemAi.id;
     } else if (id) {
       var existing = getRequestById(id);
       if (!existing) {
         showToast("Concern not found.");
         return;
       }
+      if (!concernIsUserEditable(existing)) {
+        showToast("This report is completed — it can’t be edited.");
+        return;
+      }
+      editedExistingRequestId = id;
       var baseFields =
         existing.fields && typeof existing.fields === "object"
           ? existing.fields
           : {};
-      var newStatus = concernIsSubmitted(existing) ? "submitted" : statusOut;
-      updateRequest(id, {
+      var newStatus;
+      if (mode === "submitted") {
+        newStatus = "pending";
+      } else if (concernIsSubmitted(existing)) {
+        newStatus = existing.status || "pending";
+      } else {
+        newStatus = statusOut;
+      }
+      var patch = {
         category: category,
         description: description,
         location: location,
@@ -1769,7 +2037,13 @@
           state.voiceNote != null && String(state.voiceNote).trim() !== ""
             ? state.voiceNote
             : null,
-      });
+      };
+      if (images.length) {
+        patch.images = images.slice();
+        patch.primaryPhotoIndex = 0;
+      }
+      updateRequest(id, patch);
+      if (mode === "submitted") submittedIdForSync = id;
     } else {
       var list = loadRequests();
       var lat = state.lastPosition ? state.lastPosition.lat : null;
@@ -1800,6 +2074,28 @@
       }
       list.push(item);
       saveRequests(list);
+      if (mode === "submitted") submittedIdForSync = item.id;
+    }
+
+    var demo311Ready = !!get311DemoUrl();
+    var saveSynced311 = false;
+    if (demo311Ready) {
+      var push311Id = submittedIdForSync || null;
+      if (
+        !push311Id &&
+        mode === "saved" &&
+        editedExistingRequestId
+      ) {
+        var ex = getRequestById(editedExistingRequestId);
+        if (ex && concernIsSubmitted(ex)) push311Id = editedExistingRequestId;
+      }
+      if (push311Id) {
+        var syncRec = getRequestById(push311Id);
+        if (syncRec && concernIsSubmitted(syncRec)) {
+          pushConcernTo311Demo(syncRec);
+          if (mode === "saved") saveSynced311 = true;
+        }
+      }
     }
 
     closeReportModal();
@@ -1809,7 +2105,11 @@
     updateVoiceUi();
     showToast(
       mode === "submitted"
-        ? "Concern submitted (simulated send to 311 ✓)"
+        ? demo311Ready
+          ? "Sent to 311 — pending until the city processes it."
+          : "Sent on this device. Set FLICK_311_DEMO_URL in .env and restart Expo to sync the demo dashboard."
+        : saveSynced311
+        ? "Saved. Demo dashboard updated."
         : "Concern saved on this device."
     );
     renderHomeList();
@@ -1910,6 +2210,7 @@
     $("btn-detail-submit").hidden = !(
       concernIsSavedOnly(r) && r.worthSubmitting !== false
     );
+    $("btn-detail-edit").hidden = !concernIsUserEditable(r);
   }
 
   function openConcernDetail(id) {
@@ -1918,6 +2219,7 @@
     state.detailConcernId = id;
     renderConcernDetail(r);
     $("modal-detail").hidden = false;
+    sync311DemoFromServer();
   }
 
   function submitConcernFromDetail() {
@@ -1926,8 +2228,15 @@
     var r = getRequestById(id);
     if (!r || r.worthSubmitting === false) return;
     if (!concernIsSavedOnly(r)) return;
-    updateRequest(id, { status: "submitted", timestamp: Date.now() });
-    showToast("Concern submitted (simulated send to 311 ✓)");
+    updateRequest(id, { status: "pending", timestamp: Date.now() });
+    var posted = getRequestById(id);
+    var demo311Ready = !!get311DemoUrl();
+    if (posted && demo311Ready) pushConcernTo311Demo(posted);
+    showToast(
+      demo311Ready
+        ? "Sent to 311 — pending until the city processes it."
+        : "Sent on this device. Set FLICK_311_DEMO_URL in .env and restart Expo to sync the demo dashboard."
+    );
     closeConcernDetail();
     renderHomeList();
     if (state.map) refreshMap();
@@ -1936,21 +2245,23 @@
   function deleteConcernFromDetail() {
     var id = state.detailConcernId;
     if (!id) return;
-    if (
-      !confirm(
-        "Remove this concern from this device? This cannot be undone."
-      )
-    ) {
-      return;
-    }
-    var next = loadRequests().filter(function (r) {
-      return r.id !== id;
+    showAppConfirm({
+      title: "Delete",
+      message: "Delete this concern? This cannot be undone.",
+      confirmLabel: "Delete",
+      danger: true,
+      onConfirm: function () {
+        var next = loadRequests().filter(function (r) {
+          return r.id !== id;
+        });
+        saveRequests(next);
+        deleteConcernOn311Demo(id);
+        showToast("Concern deleted.");
+        closeConcernDetail();
+        renderHomeList();
+        if (state.map) refreshMap();
+      },
     });
-    saveRequests(next);
-    showToast("Concern deleted from this device.");
-    closeConcernDetail();
-    renderHomeList();
-    if (state.map) refreshMap();
   }
 
   function openReportForEditFromDetail() {
@@ -1958,9 +2269,21 @@
     if (!id) return;
     var r = getRequestById(id);
     if (!r) return;
+    if (!concernIsUserEditable(r)) {
+      showToast("This report is completed — it can’t be edited.");
+      return;
+    }
     closeConcernDetail();
     state.currentDraftId = r.id;
     state.uncommittedAiDraft = null;
+    var cap = state.slots.length;
+    var fromImgs = r.images && r.images.length ? r.images.slice(0, cap) : [];
+    var newSlots = [null, null, null, null, null];
+    for (var si = 0; si < fromImgs.length && si < cap; si++) {
+      newSlots[si] = fromImgs[si];
+    }
+    state.slots = newSlots;
+    renderSlots();
     openReportModal({
       draftId: r.id,
       category: r.category || "other",
@@ -2235,10 +2558,24 @@
     clusters.forEach(function (c) {
       userBoundsPts.push([c.lat, c.lng]);
       var isMulti = c.items.length > 1;
+      var allCompleted =
+        c.items.length > 0 &&
+        c.items.every(function (it) {
+          return it.status === "completed";
+        });
+      var stroke;
+      var fill;
+      if (allCompleted) {
+        stroke = "#2d6b44";
+        fill = isMulti ? "#3d8f5a" : "#5cb87a";
+      } else {
+        stroke = "#d4af37";
+        fill = isMulti ? "#9a7b2c" : "#d4af37";
+      }
       var marker = L.circleMarker([c.lat, c.lng], {
         radius: isMulti ? 18 : 14,
-        color: "#d4af37",
-        fillColor: isMulti ? "#9a7b2c" : "#d4af37",
+        color: stroke,
+        fillColor: fill,
         fillOpacity: 0.88,
         weight: 3,
       });
@@ -2247,7 +2584,7 @@
         popupHtml =
           '<div class="cluster-popup"><strong>' +
           c.items.length +
-          " submitted</strong><ul class=\"cluster-list\">";
+          " reports to 311</strong><ul class=\"cluster-list\">";
         c.items.forEach(function (it) {
           popupHtml +=
             "<li>" +
@@ -2262,7 +2599,9 @@
         popupHtml =
           "<strong>" +
           categoryLabel(it.category) +
-          "</strong> · submitted<br/>" +
+          "</strong> · " +
+          concernStatusLabel(it).toLowerCase() +
+          "<br/>" +
           (it.location || "") +
           "<br/><span style='color:#8fa3bf'>" +
           formatTime(it.timestamp) +
@@ -2275,13 +2614,40 @@
     orientMapToUserOrFitLocal(userBoundsPts);
   }
 
-  function showScreen(name) {
+  var MAIN_NAV_ORDER = ["home", "camera", "settings"];
+
+  var SCREEN_SLIDE_MS = 450;
+  var screenAnimToken = 0;
+  var SCREEN_PANEL_IDS = ["screen-home", "screen-camera", "screen-settings"];
+
+  function clearScreenTransitionStyles() {
+    SCREEN_PANEL_IDS.forEach(function (id) {
+      var el = $(id);
+      if (!el) return;
+      el.classList.remove(
+        "screen-exit-left",
+        "screen-exit-right",
+        "screen-enter-from-left",
+        "screen-enter-from-right"
+      );
+      el.style.zIndex = "";
+      el.style.pointerEvents = "";
+    });
+  }
+
+  function setScreenVisibility(name) {
     $("screen-home").hidden = name !== "home";
     $("screen-camera").hidden = name !== "camera";
     $("screen-settings").hidden = name !== "settings";
+  }
+
+  function updateNavActive(name) {
     document.querySelectorAll(".nav-item").forEach(function (btn) {
       btn.classList.toggle("active", btn.getAttribute("data-nav") === name);
     });
+  }
+
+  function runScreenSideEffects(name) {
     if (name === "camera") {
       startCamera();
     } else {
@@ -2293,13 +2659,229 @@
       setTimeout(function () {
         refreshMap();
         if (state.map) state.map.invalidateSize();
-      }, 250);
+        sync311DemoFromServer();
+      }, 280);
     }
   }
 
-  function onNavigate(name) {
-    showScreen(name);
+  function showScreen(name, animDir) {
+    animDir = animDir || 0;
+    var mapEl = {
+      home: $("screen-home"),
+      camera: $("screen-camera"),
+      settings: $("screen-settings"),
+    };
+    var prevName = state.currentScreen;
+    var prevEl = mapEl[prevName];
+    var nextEl = mapEl[name];
+    if (!nextEl) return;
+
+    if (name === prevName) {
+      clearScreenTransitionStyles();
+      setScreenVisibility(name);
+      updateNavActive(name);
+      runScreenSideEffects(name);
+      return;
+    }
+
+    var reduced =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (reduced || animDir === 0 || !prevEl) {
+      clearScreenTransitionStyles();
+      state.currentScreen = name;
+      setScreenVisibility(name);
+      updateNavActive(name);
+      runScreenSideEffects(name);
+      return;
+    }
+
+    screenAnimToken++;
+    var token = screenAnimToken;
+    var done = false;
+
+    clearScreenTransitionStyles();
+
+    MAIN_NAV_ORDER.forEach(function (key) {
+      if (key !== prevName && key !== name) {
+        mapEl[key].hidden = true;
+      }
+    });
+    prevEl.hidden = false;
+    nextEl.hidden = false;
+    prevEl.style.zIndex = "1";
+    nextEl.style.zIndex = "2";
+
+    if (animDir > 0) {
+      prevEl.classList.add("screen-exit-left");
+      nextEl.classList.add("screen-enter-from-right");
+    } else {
+      prevEl.classList.add("screen-exit-right");
+      nextEl.classList.add("screen-enter-from-left");
+    }
+
+    state.currentScreen = name;
+    updateNavActive(name);
+
+    if (name === "camera") {
+      startCamera();
+    }
+
+    function finishAnim() {
+      if (token !== screenAnimToken || done) return;
+      done = true;
+      nextEl.removeEventListener("animationend", onAnimEnd);
+      clearTimeout(fallbackTimer);
+      clearScreenTransitionStyles();
+      setScreenVisibility(name);
+      if (name !== "camera") {
+        stopCamera();
+      }
+      if (name === "home") {
+        postNative({ type: "REQUEST_NATIVE_LOCATION" });
+        renderHomeList();
+        setTimeout(function () {
+          refreshMap();
+          if (state.map) state.map.invalidateSize();
+        }, 280);
+      }
+    }
+
+    function onAnimEnd(ev) {
+      if (token !== screenAnimToken || done) return;
+      if (ev && ev.target !== nextEl) return;
+      finishAnim();
+    }
+
+    var fallbackTimer = setTimeout(finishAnim, SCREEN_SLIDE_MS + 90);
+    nextEl.addEventListener("animationend", onAnimEnd);
   }
+
+  function onNavigate(name) {
+    if (name === state.currentScreen) return;
+    var from = mainNavScreenIndex(state.currentScreen);
+    var to = mainNavScreenIndex(name);
+    var dir = to > from ? 1 : to < from ? -1 : 0;
+    showScreen(name, dir);
+  }
+
+  function anyMainModalOpen() {
+    return (
+      !$("modal-confirm").hidden ||
+      !$("modal-report").hidden ||
+      !$("modal-detail").hidden ||
+      !$("modal-app-confirm").hidden
+    );
+  }
+
+  var appConfirmOnConfirm = null;
+
+  function closeAppConfirm() {
+    appConfirmOnConfirm = null;
+    $("modal-app-confirm").hidden = true;
+  }
+
+  function showAppConfirm(opts) {
+    opts = opts || {};
+    $("app-confirm-title").textContent = opts.title || "Confirm";
+    $("app-confirm-message").textContent = opts.message || "";
+    var okBtn = $("btn-app-confirm-ok");
+    okBtn.textContent = opts.confirmLabel || "OK";
+    okBtn.classList.remove("primary", "danger");
+    if (opts.danger) {
+      okBtn.classList.add("danger");
+    } else {
+      okBtn.classList.add("primary");
+    }
+    appConfirmOnConfirm =
+      typeof opts.onConfirm === "function" ? opts.onConfirm : null;
+    $("modal-app-confirm").hidden = false;
+  }
+
+  function mainNavScreenIndex(name) {
+    var i = MAIN_NAV_ORDER.indexOf(name);
+    return i >= 0 ? i : 1;
+  }
+
+  function attachMainSwipeNav() {
+    var mainEl = document.querySelector(".main");
+    if (!mainEl || mainEl.dataset.flickSwipeNav === "1") return;
+    mainEl.dataset.flickSwipeNav = "1";
+
+    var sx = 0;
+    var sy = 0;
+    var st = 0;
+    var ignore = false;
+
+    function swipeTargetDisallowed(el) {
+      if (!el || typeof el.closest !== "function") return false;
+      if (el.closest("#map")) return true;
+      return false;
+    }
+
+    mainEl.addEventListener(
+      "touchstart",
+      function (e) {
+        if (anyMainModalOpen()) {
+          ignore = true;
+          return;
+        }
+        if (!e.touches) return;
+        if (e.touches.length > 1) {
+          ignore = true;
+          return;
+        }
+        if (e.touches.length !== 1) return;
+        if (swipeTargetDisallowed(e.target)) {
+          ignore = true;
+          return;
+        }
+        ignore = false;
+        sx = e.touches[0].clientX;
+        sy = e.touches[0].clientY;
+        st = Date.now();
+      },
+      { passive: true, capture: true }
+    );
+
+    mainEl.addEventListener(
+      "touchcancel",
+      function () {
+        ignore = false;
+      },
+      { passive: true, capture: true }
+    );
+
+    mainEl.addEventListener(
+      "touchend",
+      function (e) {
+        var stillDown = e.touches ? e.touches.length : 0;
+        if (ignore) {
+          if (stillDown === 0) ignore = false;
+          return;
+        }
+        if (stillDown > 0) return;
+        if (anyMainModalOpen()) return;
+        var ch = e.changedTouches && e.changedTouches[0];
+        if (!ch) return;
+        var dx = ch.clientX - sx;
+        var dy = ch.clientY - sy;
+        if (Date.now() - st > 750) return;
+        if (Math.abs(dx) < 56) return;
+        if (Math.abs(dx) < Math.abs(dy) * 1.25) return;
+        var idx = mainNavScreenIndex(state.currentScreen);
+        if (dx < 0 && idx < MAIN_NAV_ORDER.length - 1) {
+          onNavigate(MAIN_NAV_ORDER[idx + 1]);
+        } else if (dx > 0 && idx > 0) {
+          onNavigate(MAIN_NAV_ORDER[idx - 1]);
+        }
+      },
+      { passive: true, capture: true }
+    );
+  }
+
+  attachMainSwipeNav();
 
   document.querySelectorAll(".nav-item").forEach(function (btn) {
     btn.addEventListener("click", function () {
@@ -2379,12 +2961,14 @@
   });
 
   $("btn-generate").addEventListener("click", function () {
+    if (state.aiMediaLocked) return;
     var imgs = state.slots.filter(Boolean);
     var voice = state.voiceNote;
     if (!imgs.length && !voice) {
       showToast("Add at least one photo or a voice note to generate a report.");
       return;
     }
+    setAiMediaLocked(true);
     showToast("Analyzing with AI…", { persistent: true, loading: true });
     function runAiAfterLocation() {
       callGemini(imgs, voice)
@@ -2446,6 +3030,9 @@
             fields: {},
             manualFallback: true,
           });
+        })
+        .finally(function () {
+          setAiMediaLocked(false);
         });
     }
     if (
@@ -2489,6 +3076,16 @@
   $("btn-detail-edit").addEventListener("click", openReportForEditFromDetail);
   $("btn-detail-delete").addEventListener("click", deleteConcernFromDetail);
 
+  $("btn-app-confirm-cancel").addEventListener("click", closeAppConfirm);
+  document
+    .querySelector('[data-close="app-confirm"]')
+    .addEventListener("click", closeAppConfirm);
+  $("btn-app-confirm-ok").addEventListener("click", function () {
+    var fn = appConfirmOnConfirm;
+    closeAppConfirm();
+    if (fn) fn();
+  });
+
   $("set-dark").addEventListener("change", function () {
     state.settings.darkMode = $("set-dark").checked;
     saveSettings(state.settings);
@@ -2531,29 +3128,34 @@
   });
 
   $("btn-clear-data").addEventListener("click", function () {
-    if (!confirm("Delete all saved reports and settings on this device?")) {
-      return;
-    }
-    localStorage.removeItem(STORAGE_REQUESTS);
-    localStorage.removeItem(STORAGE_SETTINGS);
-    state.settings = {
-      darkMode: true,
-      locationEnabled: true,
-      cameraEnabled: true,
-      microphoneEnabled: true,
-    };
-    saveSettings(state.settings);
-    syncSettingsUI();
-    applyTheme();
-    state.slots = [null, null, null, null, null];
-    state.voiceNote = null;
-    state.voiceRecording = false;
-    stopBrowserVoiceRecording();
-    renderSlots();
-    updateVoiceUi();
-    renderHomeList();
-    if (state.map) refreshMap();
-    showToast("Local data cleared.");
+    showAppConfirm({
+      title: "Clear all data",
+      message: "Delete all saved reports and settings on this device?",
+      confirmLabel: "Delete all",
+      danger: true,
+      onConfirm: function () {
+        localStorage.removeItem(STORAGE_REQUESTS);
+        localStorage.removeItem(STORAGE_SETTINGS);
+        stop311DemoPoll();
+        state.settings = {
+          darkMode: true,
+          locationEnabled: true,
+          cameraEnabled: true,
+          microphoneEnabled: true,
+        };
+        saveSettings(state.settings);
+        syncSettingsUI();
+        applyTheme();
+        state.slots = [null, null, null, null, null];
+        state.voiceNote = null;
+        state.voiceRecording = false;
+        stopBrowserVoiceRecording();
+        setAiMediaLocked(false);
+        renderHomeList();
+        if (state.map) refreshMap();
+        showToast("Local data cleared.");
+      },
+    });
   });
 
   $("btn-voice").addEventListener("click", function () {
@@ -2577,17 +3179,24 @@
   });
 
   $("btn-voice-clear").addEventListener("click", function () {
+    if (state.aiMediaLocked) return;
     state.voiceNote = null;
     updateVoiceUi();
   });
 
   ensureVoicePlaybackSpeakerHook();
 
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible") sync311DemoFromServer();
+  });
+
   applyTheme();
   syncSettingsUI();
+  start311DemoPoll();
+  sync311DemoFromServer();
   renderSlots();
   updateVoiceUi();
   renderHomeList();
   requestLocation();
-  showScreen("camera");
+  showScreen("camera", 0);
 })();

@@ -17,6 +17,9 @@ export default {
     ios: {
       supportsTablet: true,
       infoPlist: {
+        NSAppTransportSecurity: {
+          NSAllowsLocalNetworking: true,
+        },
         NSCameraUsageDescription:
           "Flick It Philly needs camera access to photograph city issues for your report.",
         NSPhotoLibraryUsageDescription:
@@ -32,6 +35,7 @@ export default {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#0a1628",
       },
+      usesCleartextTraffic: true,
       edgeToEdgeEnabled: true,
       permissions: [
         "CAMERA",
@@ -83,6 +87,12 @@ export default {
           process.env.EXPO_PUBLIC_GEMINI_MODEL ||
           ""
         ).trim(),
+      /** Base URL for fake 311 demo API (no trailing slash). Injected into WebView; no Settings UI. */
+      flick311DemoUrl: (
+        process.env.FLICK_311_DEMO_URL ||
+        process.env.EXPO_PUBLIC_FLICK_311_DEMO_URL ||
+        ""
+      ).trim(),
     },
   },
 };

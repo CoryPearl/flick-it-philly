@@ -18,6 +18,7 @@
   <body>
     <div id="app">
       <main class="main">
+        <div class="screen-stack">
         <!-- Home -->
         <section id="screen-home" class="screen screen-home" hidden>
           <header class="screen-header home-header">
@@ -32,14 +33,16 @@
               later.
             </p>
 
-            <h2 class="home-section-title home-section-spaced">Your submitted reports</h2>
+            <h2 class="home-section-title home-section-spaced">Your reports to 311</h2>
             <p class="home-section-sub">
-              Map shows concerns you’ve <strong>submitted</strong> on this device
-              that have a location (from when you saved the report). Saved drafts
-              without submit are not shown here.
+              Map shows concerns you’ve sent to 311 on this device (shown as
+              <strong>pending</strong> until processed). Only items with a saved
+              location appear here. Drafts you haven’t submitted stay off the map.
             </p>
             <div id="map" class="map map-home"></div>
-            <p class="map-legend">Gold: your submitted reports (this device only)</p>
+            <p class="map-legend">
+              Gold: pending · Green: completed (this device only)
+            </p>
           </div>
         </section>
 
@@ -218,6 +221,7 @@
             </button>
           </div>
         </section>
+        </div>
       </main>
 
       <nav class="bottom-nav" aria-label="Main">
@@ -366,8 +370,21 @@
           </button>
         </div>
         <button type="button" id="btn-detail-delete" class="detail-delete-btn">
-          Delete from this device
+          Delete
         </button>
+      </div>
+    </div>
+
+    <!-- App confirm (replaces window.confirm — WebView shows “JavaScript” as title) -->
+    <div id="modal-app-confirm" class="modal modal-app-confirm" hidden>
+      <div class="modal-backdrop" data-close="app-confirm" aria-hidden="true"></div>
+      <div class="modal-card modal-app-confirm-card">
+        <h2 id="app-confirm-title">Confirm</h2>
+        <p id="app-confirm-message" class="app-confirm-message"></p>
+        <div class="modal-actions">
+          <button type="button" id="btn-app-confirm-cancel">Cancel</button>
+          <button type="button" id="btn-app-confirm-ok">OK</button>
+        </div>
       </div>
     </div>
 

@@ -103,7 +103,6 @@ async function finishNativeVoiceRecording(webRef) {
         payload
       )}));}catch(e){}true;`
     );
-    injectToast(webRef, "Voice note attached.");
   } catch (e) {
     injectToast(
       webRef,
@@ -141,7 +140,6 @@ async function toggleNativeVoiceRecording(webRef) {
     );
     activeVoiceRecording = recording;
     injectVoiceRecordingState(webRef, true);
-    injectToast(webRef, "Recording… tap Voice again to stop.");
     voiceMaxTimer = setTimeout(() => {
       voiceMaxTimer = null;
       injectToast(webRef, "Recording stopped: 90 second limit.");
@@ -457,11 +455,31 @@ function handleAndroidGeminiMessage(webRef, msg) {
       incomplete = true;
     }
     if (incomplete) {
+      var imagesIncomplete = false;
+      if (needImages) {
+        for (var ii = 0; ii < a.expected; ii++) {
+          if (!a.images[ii] || !a.images[ii].data) {
+            imagesIncomplete = true;
+            break;
+          }
+        }
+      }
+      var audioIncomplete =
+        needAudio && (!a.audio || !a.audio.data);
+      var errMsg;
+      if (imagesIncomplete && audioIncomplete) {
+        errMsg =
+          "Some media did not transfer. Try fewer photos, a shorter voice note, or try again.";
+      } else if (imagesIncomplete) {
+        errMsg =
+          "Some photos did not transfer. Try fewer photos or take new pictures.";
+      } else {
+        errMsg = "Try again.";
+      }
       injectGeminiNativeResult(webRef, {
         requestId: msg.requestId,
         ok: false,
-        error:
-          "Some media did not transfer. Try fewer photos, a shorter voice note, or try again.",
+        error: errMsg,
       });
       return true;
     }
@@ -595,9 +613,21 @@ async function launchNativeCamera(webRef) {
   );
 }
 
+function readExtra() {
+  const ec = Constants.expoConfig?.extra;
+  if (ec && typeof ec === "object") return ec;
+  const m = Constants.manifest;
+  if (m && typeof m === "object" && m.extra && typeof m.extra === "object") {
+    return m.extra;
+  }
+  return {};
+}
+
 export default function App() {
-  const apiKey = Constants.expoConfig?.extra?.geminiApiKey ?? "";
-  const geminiModels = Constants.expoConfig?.extra?.geminiModels ?? "";
+  const extra = readExtra();
+  const apiKey = extra.geminiApiKey ?? "";
+  const geminiModels = extra.geminiModels ?? "";
+  const flick311DemoUrl = String(extra.flick311DemoUrl ?? "").trim();
   const webRef = useRef(null);
 
   useEffect(() => {
@@ -616,8 +646,8 @@ export default function App() {
 
   const injectedJavaScriptBeforeContentLoaded = useMemo(
     () =>
-      `(function(){window.__GEMINI_API_KEY__=${JSON.stringify(apiKey)};window.__GEMINI_MODELS__=${JSON.stringify(geminiModels)};window.__FLICK_USE_NATIVE_CAPTURE__=false;window.__FLICK_GEMINI_USE_NATIVE__=true;window.__FLICK_IS_ANDROID__=${Platform.OS === "android" ? "true" : "false"};})();true;`,
-    [apiKey, geminiModels]
+      `(function(){window.__GEMINI_API_KEY__=${JSON.stringify(apiKey)};window.__GEMINI_MODELS__=${JSON.stringify(geminiModels)};window.__FLICK_311_DEMO_URL__=${JSON.stringify(flick311DemoUrl)};window.__FLICK_USE_NATIVE_CAPTURE__=false;window.__FLICK_GEMINI_USE_NATIVE__=true;window.__FLICK_IS_ANDROID__=${Platform.OS === "android" ? "true" : "false"};})();true;`,
+    [apiKey, geminiModels, flick311DemoUrl]
   );
 
   const handleMessage = (event) => {
@@ -655,7 +685,8 @@ export default function App() {
         ref={webRef}
         source={{
           html: webBundle,
-          baseUrl: "https://localhost/",
+          /* http:// avoids WKWebView mixed-content blocking fetch() to http://LAN_IP:3110 */
+          baseUrl: "http://localhost/",
         }}
         style={styles.webview}
         originWhitelist={["*"]}
@@ -672,6 +703,9 @@ export default function App() {
         onLoadEnd={() => {
           setTimeout(() => {
             webRef.current?.injectJavaScript(INJECT_RETRY_CAMERA);
+            webRef.current?.injectJavaScript(
+              `(function(){window.__FLICK_311_DEMO_URL__=${JSON.stringify(flick311DemoUrl)};})();true;`
+            );
             void refreshNativeLocationAndInject(webRef);
           }, 300);
         }}

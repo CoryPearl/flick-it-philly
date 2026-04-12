@@ -37,6 +37,9 @@ yarn-error.*
 # bundled WebView HTML (regenerate with npm run bundle-web)
 webBundle.js
 
+# fake 311 demo API persistence (npm run 311-demo)
+.311-demo-db.json
+
 # typescript
 *.tsbuildinfo
 

@@ -1,3 +1,4 @@
-- Redesinging the layout - animations?
-
 - make sure to pitch that it wont let you if not serious and that the feilds and sections are the exact same as philyy 311 so integrating them would be easy, and talk about how you can add voice, multi lingual
+
+npm run 311-demo - run demo server
+npm start - run app

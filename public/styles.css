@@ -51,24 +51,87 @@ body.light {
   padding-bottom: calc(4.25rem + var(--safe-bottom));
 }
 
-.screen {
+.screen-stack {
   flex: 1;
+  min-height: 0;
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.screen-stack > .screen {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  flex: none;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: fadeIn 0.2s ease;
+  background: var(--bg);
 }
 
 .screen[hidden] {
   display: none !important;
 }
 
-@keyframes fadeIn {
+.screen.screen-exit-left {
+  animation: flick-screen-exit-left 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  pointer-events: none;
+}
+
+.screen.screen-exit-right {
+  animation: flick-screen-exit-right 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  pointer-events: none;
+}
+
+.screen.screen-enter-from-right {
+  animation: flick-screen-enter-from-right 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  pointer-events: none;
+}
+
+.screen.screen-enter-from-left {
+  animation: flick-screen-enter-from-left 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  pointer-events: none;
+}
+
+@keyframes flick-screen-exit-left {
   from {
-    opacity: 0;
+    transform: translateX(0);
   }
   to {
-    opacity: 1;
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes flick-screen-exit-right {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes flick-screen-enter-from-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes flick-screen-enter-from-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
   }
 }
 
@@ -163,10 +226,16 @@ body.light {
   align-items: flex-start;
   cursor: pointer;
   -webkit-tap-highlight-color: rgba(212, 175, 55, 0.15);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.25s ease,
+    border-color 0.2s ease,
+    opacity 0.15s ease;
 }
 
 .request-card:active {
   opacity: 0.92;
+  transform: scale(0.985);
 }
 
 body.light .request-card {
@@ -219,6 +288,7 @@ body.light .request-card {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  border: 1px solid transparent;
 }
 
 .status-pill.generated {
@@ -227,8 +297,9 @@ body.light .request-card {
 }
 
 .status-pill.pending {
-  background: rgba(100, 180, 255, 0.15);
-  color: #7ec8ff;
+  background: rgba(255, 186, 96, 0.16);
+  color: #f0b24a;
+  border: 1px solid rgba(255, 186, 96, 0.35);
 }
 
 .status-pill.saved {
@@ -237,8 +308,15 @@ body.light .request-card {
 }
 
 .status-pill.submitted {
-  background: rgba(100, 180, 255, 0.15);
-  color: #7ec8ff;
+  background: rgba(96, 200, 140, 0.16);
+  color: #6ec992;
+  border: 1px solid rgba(96, 200, 140, 0.35);
+}
+
+.status-pill.completed {
+  background: rgba(80, 200, 160, 0.18);
+  color: #5ed4b0;
+  border: 1px solid rgba(80, 200, 160, 0.4);
 }
 
 .ai-flag {
@@ -288,12 +366,28 @@ body.light .request-card {
   justify-content: center;
   font-size: 0.65rem;
   color: var(--muted);
+  transition:
+    border-color 0.25s ease,
+    transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s ease;
 }
 
 .slot.filled {
   border-style: solid;
   border-color: var(--gold-dim);
   padding: 0;
+  animation: flick-slot-fill 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes flick-slot-fill {
+  from {
+    transform: scale(0.92);
+    box-shadow: 0 0 0 0 rgba(212, 175, 55, 0);
+  }
+  to {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(212, 175, 55, 0);
+  }
 }
 
 .slot-inner {
@@ -307,6 +401,18 @@ body.light .request-card {
   height: 100%;
   object-fit: cover;
   display: block;
+  animation: flick-slot-img 0.35s ease;
+}
+
+@keyframes flick-slot-img {
+  from {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .slot-remove {
@@ -552,6 +658,16 @@ body.light .request-card {
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.22s ease,
+    border-color 0.2s ease,
+    background 0.2s ease,
+    opacity 0.15s ease;
+}
+
+.ctrl-btn:active:not(:disabled) {
+  transform: scale(0.96);
 }
 
 .camera-controls .ctrl-btn {
@@ -560,6 +676,23 @@ body.light .request-card {
 
 .camera-controls .ctrl-btn.primary {
   max-width: 128px;
+  background: linear-gradient(145deg, #e8b80f, #fff06a);
+  color: #0a1628;
+  border-color: transparent;
+  box-shadow: 0 2px 14px rgba(255, 215, 48, 0.45);
+}
+
+.camera-controls #btn-gallery {
+  transition:
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.32s ease,
+    border-color 0.32s ease,
+    background 0.2s ease,
+    opacity 0.15s ease;
+}
+
+.camera-controls #btn-gallery:active:not(:disabled) {
+  transform: scale(0.9);
 }
 
 .ctrl-btn.primary {
@@ -582,10 +715,14 @@ body.light .request-card {
   flex-shrink: 0;
   cursor: pointer;
   box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.15);
+  transition:
+    transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.25s ease,
+    border-color 0.2s ease;
 }
 
 .capture-btn:active {
-  transform: scale(0.96);
+  transform: scale(0.94);
 }
 
 /* Settings */
@@ -605,12 +742,49 @@ body.light .request-card {
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   font-weight: 500;
+  transition:
+    border-color 0.22s ease,
+    box-shadow 0.22s ease;
 }
 
 .setting-row input[type="checkbox"] {
   width: 1.35rem;
   height: 1.35rem;
   accent-color: var(--gold);
+}
+
+.setting-row-block {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.setting-row-label {
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+.setting-url-input {
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
+body.light .setting-url-input {
+  background: #f4f7fb;
+  border-color: rgba(10, 22, 40, 0.15);
+}
+
+.settings-code {
+  font-size: 0.78rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  background: rgba(212, 175, 55, 0.12);
+  font-family: ui-monospace, monospace;
 }
 
 .setting-camera-actions {
@@ -678,6 +852,7 @@ body.light .request-card {
   color: var(--muted);
   font-size: 0.68rem;
   cursor: pointer;
+  transition: color 0.22s ease;
 }
 
 .nav-item.active {
@@ -689,6 +864,14 @@ body.light .request-card {
   align-items: center;
   justify-content: center;
   line-height: 0;
+}
+
+.nav-item .nav-icon-svg {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.nav-item.active .nav-icon-svg {
+  transform: scale(1.07);
 }
 
 .nav-icon-svg {
@@ -708,6 +891,17 @@ body.light .request-card {
   padding: var(--safe-top) 0 0;
 }
 
+.modal-app-confirm {
+  z-index: 110;
+}
+
+.app-confirm-message {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
 .modal[hidden] {
   display: none !important;
 }
@@ -716,6 +910,20 @@ body.light .request-card {
   position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.55);
+  opacity: 1;
+}
+
+.modal:not([hidden]) .modal-backdrop {
+  animation: flick-backdrop-in 0.3s ease forwards;
+}
+
+@keyframes flick-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .modal-card {
@@ -729,14 +937,16 @@ body.light .request-card {
   padding: 1.25rem 1rem calc(1.25rem + var(--safe-bottom));
   border: 1px solid rgba(212, 175, 55, 0.25);
   border-bottom: none;
-  animation: slideUp 0.25s ease;
+  animation: flick-modal-sheet 0.38s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-@keyframes slideUp {
+@keyframes flick-modal-sheet {
   from {
+    opacity: 0;
     transform: translateY(100%);
   }
   to {
+    opacity: 1;
     transform: translateY(0);
   }
 }
@@ -753,6 +963,7 @@ body.light .request-card {
   border-radius: 10px;
   background: #000;
   margin-bottom: 1rem;
+  animation: flick-fade-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .modal-actions {
@@ -770,12 +981,35 @@ body.light .request-card {
   color: var(--text);
   font-weight: 600;
   cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    background 0.2s ease,
+    border-color 0.2s ease,
+    opacity 0.15s ease;
+}
+
+.modal-actions button:active {
+  transform: scale(0.97);
 }
 
 .modal-actions button.primary {
   background: var(--gold);
   color: var(--bg);
   border-color: transparent;
+}
+
+.modal-actions button.danger {
+  background: rgba(232, 93, 93, 0.95);
+  color: #fff;
+  border-color: transparent;
+}
+
+.modal-actions button.danger:active {
+  opacity: 0.92;
+}
+
+body.light .modal-actions button.danger {
+  color: #fff;
 }
 
 .modal-actions button.secondary {
@@ -897,6 +1131,21 @@ body.light .request-card {
   border-radius: 10px;
   border: 1px solid rgba(212, 175, 55, 0.35);
   background: rgba(212, 175, 55, 0.08);
+}
+
+.ai-triage:not([hidden]) {
+  animation: flick-fade-up 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes flick-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .ai-triage.recommend-no {
@@ -1046,7 +1295,7 @@ body.light .report-form textarea {
   position: fixed;
   bottom: calc(5rem + var(--safe-bottom));
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, 0);
   z-index: 200;
   padding: 0.65rem 1.1rem;
   background: var(--bg-elevated);
@@ -1060,6 +1309,31 @@ body.light .report-form textarea {
   justify-content: center;
   gap: 0.55rem;
   text-align: left;
+  transition:
+    opacity 0.45s ease-out,
+    transform 0.45s ease-out;
+}
+
+.toast:not([hidden]):not(.toast-hiding) {
+  animation: flick-toast-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.toast.toast-hiding {
+  animation: none !important;
+  opacity: 0;
+  transform: translate(-50%, 14px);
+  pointer-events: none;
+}
+
+@keyframes flick-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 16px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 .toast[hidden] {
@@ -1102,4 +1376,45 @@ body.light .report-form textarea {
 
 .leaflet-popup-content-wrapper {
   border-radius: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen.screen-exit-left,
+  .screen.screen-exit-right,
+  .screen.screen-enter-from-left,
+  .screen.screen-enter-from-right {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .modal:not([hidden]) .modal-backdrop,
+  .modal-card,
+  .toast:not([hidden]):not(.toast-hiding),
+  .ai-triage:not([hidden]),
+  #confirm-preview,
+  .slot.filled,
+  .slot-inner img {
+    animation: none !important;
+  }
+
+  .toast-spinner {
+    animation: none !important;
+    border-color: rgba(212, 175, 55, 0.45);
+  }
+
+  .toast,
+  .request-card,
+  .slot,
+  .ctrl-btn,
+  .capture-btn,
+  .modal-actions button,
+  .nav-item,
+  .nav-item .nav-icon-svg,
+  .setting-row {
+    transition: none !important;
+  }
+
+  .nav-item.active .nav-icon-svg {
+    transform: none;
+  }
 }

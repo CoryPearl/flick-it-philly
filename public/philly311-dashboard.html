@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Philadelphia 311 — Demo staff console</title>
+    <style>
+      :root {
+        --philly-blue: #004785;
+        --philly-blue-dark: #00305a;
+        --gold: #d4af37;
+        --bg: #0f1724;
+        --card: #1a2436;
+        --text: #e8eef5;
+        --muted: #8fa3bf;
+        --ok: #5cb87a;
+        --pending: #e8b80f;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        background: linear-gradient(165deg, var(--philly-blue-dark) 0%, var(--bg) 45%);
+        color: var(--text);
+      }
+      .top {
+        background: var(--philly-blue);
+        border-bottom: 3px solid var(--gold);
+        padding: 1rem 1.25rem;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+      }
+      .top-inner {
+        max-width: 960px;
+        margin: 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+      }
+      .seal {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: linear-gradient(145deg, var(--gold), #fff6a8);
+        color: var(--philly-blue-dark);
+        font-weight: 800;
+        font-size: 0.65rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        line-height: 1.1;
+        flex-shrink: 0;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .sub {
+        margin: 0.15rem 0 0;
+        font-size: 0.78rem;
+        color: rgba(255, 255, 255, 0.85);
+      }
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      .toolbar button {
+        padding: 0.45rem 0.85rem;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+        font-weight: 600;
+        font-size: 0.85rem;
+        cursor: pointer;
+      }
+      .toolbar button:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+      .toolbar button.btn-clear-queue {
+        border-color: rgba(255, 140, 140, 0.55);
+        background: rgba(180, 60, 60, 0.35);
+      }
+      .toolbar button.btn-clear-queue:hover {
+        background: rgba(200, 70, 70, 0.5);
+      }
+      .banner {
+        max-width: 960px;
+        margin: 1rem auto 0;
+        padding: 0 1.25rem;
+      }
+      .demo-note {
+        margin: 0;
+        padding: 0.65rem 0.85rem;
+        border-radius: 10px;
+        background: rgba(212, 175, 55, 0.12);
+        border: 1px solid rgba(212, 175, 55, 0.35);
+        font-size: 0.82rem;
+        color: #f0e6c8;
+        line-height: 1.45;
+      }
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 1.25rem 1.25rem 2.5rem;
+      }
+      .stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+        margin-bottom: 1rem;
+      }
+      .stat {
+        padding: 0.5rem 0.85rem;
+        border-radius: 10px;
+        background: var(--card);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 0.82rem;
+      }
+      .stat strong {
+        color: var(--gold);
+      }
+      .list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+      }
+      .card {
+        background: var(--card);
+        border-radius: 12px;
+        border: 1px solid rgba(212, 175, 55, 0.2);
+        padding: 1rem 1.1rem;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+      }
+      .card-head {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.5rem;
+        margin-bottom: 0.65rem;
+      }
+      .cat {
+        font-weight: 700;
+        text-transform: capitalize;
+        font-size: 1rem;
+      }
+      .badge {
+        display: inline-block;
+        padding: 0.2rem 0.55rem;
+        border-radius: 6px;
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .badge.pending {
+        background: rgba(232, 184, 15, 0.2);
+        color: var(--pending);
+      }
+      .badge.completed {
+        background: rgba(92, 184, 122, 0.2);
+        color: var(--ok);
+      }
+      .meta {
+        font-size: 0.78rem;
+        color: var(--muted);
+        margin: 0 0 0.35rem;
+      }
+      .desc {
+        margin: 0.35rem 0;
+        font-size: 0.9rem;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .loc {
+        margin: 0.35rem 0 0;
+        font-size: 0.85rem;
+        color: #b8c9de;
+      }
+      .id {
+        font-family: ui-monospace, monospace;
+        font-size: 0.72rem;
+        color: var(--muted);
+        margin-top: 0.5rem;
+        word-break: break-all;
+      }
+      .actions {
+        margin-top: 0.85rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .actions button {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        font-size: 0.85rem;
+      }
+      .btn-complete {
+        background: var(--ok);
+        color: #0a1628;
+      }
+      .btn-complete:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .btn-reopen {
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      .empty {
+        text-align: center;
+        padding: 2.5rem 1rem;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .err {
+        background: rgba(232, 93, 93, 0.15);
+        border: 1px solid rgba(232, 93, 93, 0.4);
+        color: #ffb4b4;
+        padding: 0.75rem 1rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+        font-size: 0.88rem;
+      }
+      .dash-hint {
+        font-size: 0.72rem;
+        color: var(--muted);
+        margin: 0 0 0.4rem;
+      }
+      .dash-media {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin: 0.5rem 0 0.35rem;
+      }
+      .dash-thumb-btn {
+        padding: 0;
+        border: none;
+        background: transparent;
+        cursor: zoom-in;
+        border-radius: 10px;
+        overflow: hidden;
+        line-height: 0;
+      }
+      .dash-thumb {
+        width: 92px;
+        height: 92px;
+        object-fit: cover;
+        display: block;
+        border-radius: 10px;
+        border: 2px solid rgba(212, 175, 55, 0.35);
+      }
+      .dash-thumb-btn:focus {
+        outline: 2px solid var(--gold);
+        outline-offset: 2px;
+      }
+      .dash-desc-hit {
+        cursor: pointer;
+        text-decoration: underline;
+        text-decoration-style: dotted;
+        text-underline-offset: 3px;
+      }
+      .dash-desc-hit:hover {
+        color: #fff;
+      }
+      .dash-extra {
+        margin: 0.5rem 0 0;
+        font-size: 0.8rem;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .dash-fields {
+        margin: 0.65rem 0 0;
+        padding: 0.55rem 0.65rem;
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.2);
+        font-size: 0.8rem;
+      }
+      .dash-fields dt {
+        margin: 0.35rem 0 0.1rem;
+        font-weight: 600;
+        color: #b8c9de;
+      }
+      .dash-fields dt:first-child {
+        margin-top: 0;
+      }
+      .dash-fields dd {
+        margin: 0 0 0.25rem;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .dash-voice {
+        margin: 0.65rem 0 0;
+      }
+      .dash-voice audio {
+        width: 100%;
+        max-width: 420px;
+        height: 36px;
+      }
+      .media-lightbox {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+      }
+      .media-lightbox[hidden] {
+        display: none !important;
+      }
+      .media-lightbox-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.88);
+        cursor: pointer;
+      }
+      .media-lightbox-inner {
+        position: relative;
+        z-index: 1;
+        max-width: min(96vw, 1200px);
+        max-height: 92vh;
+      }
+      .media-lightbox-inner img {
+        display: block;
+        max-width: min(96vw, 1200px);
+        max-height: 88vh;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        border-radius: 10px;
+        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55);
+      }
+      .media-lightbox-close {
+        position: absolute;
+        top: 0.4rem;
+        right: 0.4rem;
+        z-index: 2;
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 50%;
+        border: none;
+        background: rgba(0, 0, 0, 0.65);
+        color: #fff;
+        font-size: 1.5rem;
+        line-height: 1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .detail-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+      }
+      .detail-modal[hidden] {
+        display: none !important;
+      }
+      .detail-modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.75);
+        cursor: pointer;
+      }
+      .detail-modal-card {
+        position: relative;
+        z-index: 1;
+        width: min(100%, 520px);
+        max-height: 85vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        background: var(--card);
+        border-radius: 12px;
+        border: 1px solid rgba(212, 175, 55, 0.3);
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+      }
+      .detail-modal-close {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        z-index: 2;
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: 50%;
+        border: none;
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--text);
+        font-size: 1.35rem;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .detail-modal-body {
+        padding: 1.25rem 1.1rem 1.1rem;
+        overflow-y: auto;
+        font-size: 0.88rem;
+        line-height: 1.5;
+      }
+      .detail-modal-body h3 {
+        margin: 0 0 0.65rem;
+        font-size: 1rem;
+        color: var(--gold);
+      }
+      .detail-modal-body .dm-row {
+        margin-bottom: 0.75rem;
+      }
+      .detail-modal-body .dm-label {
+        display: block;
+        font-weight: 700;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted);
+        margin-bottom: 0.2rem;
+      }
+      .detail-modal-body .dm-val {
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="top">
+      <div class="top-inner">
+        <div class="brand">
+          <div class="seal">CITY<br />DEMO</div>
+          <div>
+            <h1>Philadelphia 311 — Staff queue (demo)</h1>
+            <p class="sub">Fake console for Flick It Philly development</p>
+          </div>
+        </div>
+        <div class="toolbar">
+          <button type="button" id="btn-refresh">Refresh</button>
+          <button type="button" id="btn-clear-queue" class="btn-clear-queue">
+            Clear queue
+          </button>
+        </div>
+      </div>
+    </header>
+    <div class="banner">
+      <p class="demo-note">
+        This is not a real government system. Run
+        <strong>npm run 311-demo</strong> on a computer on the same Wi‑Fi as the
+        phone. Set <code>FLICK_311_DEMO_URL</code> in the app’s
+        <code>.env</code> to that machine’s LAN URL (shown in the server console),
+        e.g. <code>http://192.168.x.x:3110</code>, then rebuild so submissions
+        appear here. Marking <strong>Completed</strong> updates the resident’s app
+        on the next sync.
+      </p>
+    </div>
+    <main>
+      <div id="error" class="err" hidden></div>
+      <div class="stats" id="stats" hidden></div>
+      <div class="list" id="list"></div>
+    </main>
+    <div
+      id="media-lightbox"
+      class="media-lightbox"
+      hidden
+      aria-modal="true"
+      role="dialog"
+      aria-label="Enlarged photo"
+    >
+      <div class="media-lightbox-backdrop" data-close-lightbox></div>
+      <div class="media-lightbox-inner">
+        <button
+          type="button"
+          class="media-lightbox-close"
+          data-close-lightbox
+          aria-label="Close"
+        >
+          ×
+        </button>
+        <img id="media-lightbox-img" src="" alt="Enlarged report photo" />
+      </div>
+    </div>
+    <div
+      id="detail-modal"
+      class="detail-modal"
+      hidden
+      aria-modal="true"
+      role="dialog"
+      aria-label="Full report details"
+    >
+      <div class="detail-modal-backdrop" data-close-detail></div>
+      <div class="detail-modal-card">
+        <button
+          type="button"
+          class="detail-modal-close"
+          data-close-detail
+          aria-label="Close"
+        >
+          ×
+        </button>
+        <div id="detail-modal-body" class="detail-modal-body"></div>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var API = "";
+
+        function el(id) {
+          return document.getElementById(id);
+        }
+
+        function showError(msg) {
+          var e = el("error");
+          if (!msg) {
+            e.hidden = true;
+            e.textContent = "";
+            return;
+          }
+          e.hidden = false;
+          e.textContent = msg;
+        }
+
+        function formatTime(ts) {
+          if (!ts) return "—";
+          return new Date(ts).toLocaleString();
+        }
+
+        function escapeHtml(s) {
+          return String(s == null ? "" : s)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+        }
+
+        function syncBodyScrollLock() {
+          var lbOpen = !el("media-lightbox").hidden;
+          var dmOpen = !el("detail-modal").hidden;
+          document.body.style.overflow = lbOpen || dmOpen ? "hidden" : "";
+        }
+
+        function openLightbox(src) {
+          el("media-lightbox-img").src = src;
+          el("media-lightbox").hidden = false;
+          syncBodyScrollLock();
+        }
+
+        function closeLightbox() {
+          el("media-lightbox-img").src = "";
+          el("media-lightbox").hidden = true;
+          syncBodyScrollLock();
+        }
+
+        function buildDetailModalHtml(r) {
+          var parts = [];
+          parts.push("<h3>Full report</h3>");
+          function row(label, val) {
+            if (val == null || String(val).trim() === "") return;
+            parts.push(
+              '<div class="dm-row"><span class="dm-label">' +
+                escapeHtml(label) +
+                '</span><div class="dm-val">' +
+                escapeHtml(String(val)) +
+                "</div></div>"
+            );
+          }
+          row("Category", (r.category || "other").replace(/_/g, " "));
+          row("Description", r.description);
+          row("Location", r.location);
+          if (typeof r.lat === "number" && typeof r.lng === "number") {
+            row("Coordinates", r.lat.toFixed(6) + ", " + r.lng.toFixed(6));
+          }
+          row("Status in app", r.appStatus);
+          if (r.worthSubmitting === false) {
+            row("AI triage", "Low fit for 311");
+          } else if (r.worthSubmitting === true) {
+            row("AI triage", "Reasonable fit for 311");
+          }
+          if (r.manualEntry) row("Entry type", "Manual / offline");
+          row("AI guidance", r.submissionAdvice);
+          var f = r.fields && typeof r.fields === "object" ? r.fields : {};
+          Object.keys(f).forEach(function (k) {
+            if (k === "category" || k === "description" || k === "location") {
+              return;
+            }
+            var v = f[k];
+            if (v == null || String(v).trim() === "") return;
+            row(k.replace(/_/g, " "), String(v));
+          });
+          var imgs =
+            r.images && Array.isArray(r.images) ? r.images.length : 0;
+          if (imgs) row("Photos attached", String(imgs));
+          if (
+            r.voiceNote &&
+            typeof r.voiceNote === "string" &&
+            r.voiceNote.indexOf("data:") === 0
+          ) {
+            row("Voice note", "Yes (use player on card)");
+          }
+          row("Report ID", r.id);
+          return parts.join("");
+        }
+
+        function openDetailModal(r) {
+          el("detail-modal-body").innerHTML = buildDetailModalHtml(r);
+          el("detail-modal").hidden = false;
+          syncBodyScrollLock();
+        }
+
+        function closeDetailModal() {
+          el("detail-modal").hidden = true;
+          el("detail-modal-body").innerHTML = "";
+          syncBodyScrollLock();
+        }
+
+        function render(requests) {
+          var list = el("list");
+          var stats = el("stats");
+          list.innerHTML = "";
+          var pending = requests.filter(function (r) {
+            return (r.dashboardStatus || "pending") !== "completed";
+          }).length;
+          var done = requests.length - pending;
+          stats.hidden = requests.length === 0;
+          stats.innerHTML =
+            '<div class="stat"><strong>' +
+            requests.length +
+            "</strong> total</div>" +
+            '<div class="stat"><strong>' +
+            pending +
+            "</strong> open</div>" +
+            '<div class="stat"><strong>' +
+            done +
+            "</strong> completed</div>";
+
+          if (!requests.length) {
+            list.innerHTML =
+              '<p class="empty">No requests yet. Submit a concern from the Flick It Philly app with the demo server URL configured.</p>';
+            return;
+          }
+
+          requests.forEach(function (r) {
+            var done = r.dashboardStatus === "completed";
+            var card = document.createElement("article");
+            card.className = "card";
+            var head = document.createElement("div");
+            head.className = "card-head";
+            var cat = document.createElement("div");
+            cat.className = "cat";
+            cat.textContent = (r.category || "other").replace(/_/g, " ");
+            var badge = document.createElement("span");
+            badge.className = "badge " + (done ? "completed" : "pending");
+            badge.textContent = done ? "Completed" : "Pending";
+            head.appendChild(cat);
+            head.appendChild(badge);
+            card.appendChild(head);
+
+            var meta = document.createElement("p");
+            meta.className = "meta";
+            meta.textContent =
+              "Received " +
+              formatTime(r.receivedAt) +
+              " · Reported " +
+              formatTime(r.timestamp);
+            card.appendChild(meta);
+
+            var hint = document.createElement("p");
+            hint.className = "dash-hint";
+            hint.textContent =
+              "Tap a photo to enlarge · tap description for every field";
+            card.appendChild(hint);
+
+            var imgs =
+              r.images && Array.isArray(r.images) && r.images.length
+                ? r.images
+                : [];
+            if (imgs.length) {
+              var mw = document.createElement("div");
+              mw.className = "dash-media";
+              imgs.forEach(function (src, j) {
+                if (typeof src !== "string" || src.indexOf("data:") !== 0) {
+                  return;
+                }
+                var b = document.createElement("button");
+                b.type = "button";
+                b.className = "dash-thumb-btn";
+                b.setAttribute("aria-label", "Enlarge photo " + (j + 1));
+                var im = document.createElement("img");
+                im.src = src;
+                im.alt = "Report photo " + (j + 1);
+                im.className = "dash-thumb";
+                im.loading = "lazy";
+                b.appendChild(im);
+                b.addEventListener("click", function () {
+                  openLightbox(src);
+                });
+                mw.appendChild(b);
+              });
+              if (mw.childNodes.length) card.appendChild(mw);
+            }
+
+            var desc = document.createElement("p");
+            desc.className = "desc dash-desc-hit";
+            desc.textContent = r.description || "(No description)";
+            desc.setAttribute("role", "button");
+            desc.tabIndex = 0;
+            desc.title = "Open full report (all fields)";
+            function openDet() {
+              openDetailModal(r);
+            }
+            desc.addEventListener("click", openDet);
+            desc.addEventListener("keydown", function (e) {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                openDet();
+              }
+            });
+            card.appendChild(desc);
+
+            var loc = document.createElement("p");
+            loc.className = "loc";
+            loc.textContent = "📍 " + (r.location || "No address");
+            card.appendChild(loc);
+
+            var extras = [];
+            if (typeof r.lat === "number" && typeof r.lng === "number") {
+              extras.push(
+                "Coords: " + r.lat.toFixed(5) + ", " + r.lng.toFixed(5)
+              );
+            }
+            if (r.appStatus) extras.push("App: " + r.appStatus);
+            if (r.manualEntry) extras.push("Manual entry");
+            if (r.worthSubmitting === false) extras.push("AI: low 311 fit");
+            if (extras.length) {
+              var ex = document.createElement("p");
+              ex.className = "dash-extra";
+              ex.textContent = extras.join(" · ");
+              card.appendChild(ex);
+            }
+
+            var f = r.fields && typeof r.fields === "object" ? r.fields : {};
+            var fk = Object.keys(f).filter(function (k) {
+              if (k === "category" || k === "description" || k === "location") {
+                return false;
+              }
+              var v = f[k];
+              return v != null && String(v).trim() !== "";
+            });
+            if (fk.length) {
+              var dl = document.createElement("dl");
+              dl.className = "dash-fields";
+              fk.forEach(function (k) {
+                var dt = document.createElement("dt");
+                dt.textContent = k.replace(/_/g, " ");
+                var dd = document.createElement("dd");
+                dd.textContent = String(f[k]);
+                dl.appendChild(dt);
+                dl.appendChild(dd);
+              });
+              card.appendChild(dl);
+            }
+
+            var adv = (r.submissionAdvice && String(r.submissionAdvice).trim()) || "";
+            if (adv) {
+              var ai = document.createElement("p");
+              ai.className = "dash-extra";
+              ai.textContent =
+                "AI note: " +
+                adv.slice(0, 240) +
+                (adv.length > 240 ? "…" : "");
+              card.appendChild(ai);
+            }
+
+            if (
+              r.voiceNote &&
+              typeof r.voiceNote === "string" &&
+              r.voiceNote.indexOf("data:") === 0
+            ) {
+              var vw = document.createElement("div");
+              vw.className = "dash-voice";
+              var aud = document.createElement("audio");
+              aud.controls = true;
+              aud.preload = "metadata";
+              aud.src = r.voiceNote;
+              vw.appendChild(aud);
+              card.appendChild(vw);
+            }
+
+            var idp = document.createElement("div");
+            idp.className = "id";
+            idp.textContent = "ID: " + r.id;
+            card.appendChild(idp);
+
+            var actions = document.createElement("div");
+            actions.className = "actions";
+            var btnDone = document.createElement("button");
+            btnDone.type = "button";
+            btnDone.className = "btn-complete";
+            btnDone.textContent = "Mark completed";
+            btnDone.disabled = done;
+            btnDone.addEventListener("click", function () {
+              patchStatus(r.id, "completed");
+            });
+            actions.appendChild(btnDone);
+            if (done) {
+              var btnReopen = document.createElement("button");
+              btnReopen.type = "button";
+              btnReopen.className = "btn-reopen";
+              btnReopen.textContent = "Reopen";
+              btnReopen.addEventListener("click", function () {
+                patchStatus(r.id, "pending");
+              });
+              actions.appendChild(btnReopen);
+            }
+            card.appendChild(actions);
+            list.appendChild(card);
+          });
+        }
+
+        function load() {
+          showError("");
+          fetch(API + "/api/requests")
+            .then(function (res) {
+              if (!res.ok) throw new Error("HTTP " + res.status);
+              return res.json();
+            })
+            .then(function (data) {
+              var arr = (data && data.requests) || [];
+              arr.sort(function (a, b) {
+                return (b.receivedAt || 0) - (a.receivedAt || 0);
+              });
+              render(arr);
+            })
+            .catch(function (e) {
+              showError(
+                "Could not load requests. Is the demo server running? (" +
+                  (e && e.message ? e.message : "error") +
+                  ")"
+              );
+              el("stats").hidden = true;
+              el("list").innerHTML = "";
+            });
+        }
+
+        function patchStatus(id, dashboardStatus) {
+          showError("");
+          fetch(API + "/api/requests/" + encodeURIComponent(id), {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ dashboardStatus: dashboardStatus }),
+          })
+            .then(function (res) {
+              if (!res.ok) throw new Error("HTTP " + res.status);
+              load();
+            })
+            .catch(function (e) {
+              showError(e && e.message ? e.message : "Update failed");
+            });
+        }
+
+        function clearQueue() {
+          if (
+            !window.confirm(
+              "Remove every request from the demo queue? This only clears the server; the app still keeps its own saved reports until you delete them there."
+            )
+          ) {
+            return;
+          }
+          showError("");
+          fetch(API + "/api/requests", { method: "DELETE" })
+            .then(function (res) {
+              if (!res.ok) throw new Error("HTTP " + res.status);
+              load();
+            })
+            .catch(function (e) {
+              showError(e && e.message ? e.message : "Clear failed");
+            });
+        }
+
+        el("btn-refresh").addEventListener("click", load);
+        el("btn-clear-queue").addEventListener("click", clearQueue);
+
+        document.addEventListener("click", function (e) {
+          var t = e.target;
+          if (!t || !t.getAttribute) return;
+          if (t.getAttribute("data-close-lightbox") != null) closeLightbox();
+          if (t.getAttribute("data-close-detail") != null) closeDetailModal();
+        });
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "Escape") {
+            closeLightbox();
+            closeDetailModal();
+          }
+        });
+
+        load();
+        setInterval(load, 30000);
+      })();
+    </script>
+  </body>
+</html>
