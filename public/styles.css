@@ -462,10 +462,49 @@ body.light .request-card {
   display: none !important;
 }
 
+.ctrl-btn-inner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.ctrl-btn-inner-spread {
+  gap: 0.45rem;
+}
+
+.ctrl-btn-text {
+  white-space: nowrap;
+}
+
+.ctrl-btn-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.ctrl-btn-arrow {
+  width: 18px;
+  height: 18px;
+}
+
+.ctrl-btn-with-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ctrl-btn-primary-row .ctrl-btn-inner {
+  width: 100%;
+  justify-content: center;
+}
+
 .voice-row .ctrl-btn.voice-btn {
   flex: 0 0 auto;
   max-width: none;
-  min-width: 4.5rem;
+  min-width: 0;
+  padding: 0.5rem 0.65rem;
 }
 
 .voice-row .ctrl-btn.voice-btn.is-recording {
@@ -513,6 +552,14 @@ body.light .request-card {
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
+}
+
+.camera-controls .ctrl-btn {
+  max-width: 118px;
+}
+
+.camera-controls .ctrl-btn.primary {
+  max-width: 128px;
 }
 
 .ctrl-btn.primary {
@@ -638,8 +685,16 @@ body.light .request-card {
 }
 
 .nav-icon {
-  font-size: 1.25rem;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.nav-icon-svg {
+  width: 1.55rem;
+  height: 1.55rem;
+  flex-shrink: 0;
 }
 
 /* Modals */
@@ -1000,7 +1055,11 @@ body.light .report-form textarea {
   font-size: 0.9rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   max-width: 90vw;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  text-align: left;
 }
 
 .toast[hidden] {
@@ -1009,6 +1068,30 @@ body.light .report-form textarea {
 
 .toast.toast-persistent {
   border-color: var(--gold);
+}
+
+.toast-message {
+  line-height: 1.35;
+}
+
+.toast-spinner {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+  border: 2px solid rgba(212, 175, 55, 0.28);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: flick-toast-spin 0.65s linear infinite;
+}
+
+.toast-spinner[hidden] {
+  display: none !important;
+}
+
+@keyframes flick-toast-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .cluster-popup .cluster-list {

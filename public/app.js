@@ -148,17 +148,33 @@
 
   function hideToast() {
     var t = $("toast");
+    var sp = $("toast-spinner");
     clearTimeout(showToast._timer);
     showToast._timer = null;
     t.hidden = true;
-    t.classList.remove("toast-persistent");
+    t.classList.remove("toast-persistent", "toast-with-spinner");
     t.removeAttribute("aria-busy");
+    if (sp) sp.hidden = true;
   }
 
   function showToast(msg, opts) {
     opts = opts || {};
     var t = $("toast");
-    t.textContent = msg;
+    var msgEl = $("toast-message");
+    var sp = $("toast-spinner");
+    if (msgEl) {
+      msgEl.textContent = msg;
+    } else {
+      t.textContent = msg;
+    }
+    if (sp) {
+      sp.hidden = !opts.loading;
+    }
+    if (opts.loading) {
+      t.classList.add("toast-with-spinner");
+    } else {
+      t.classList.remove("toast-with-spinner");
+    }
     t.hidden = false;
     clearTimeout(showToast._timer);
     showToast._timer = null;
@@ -169,6 +185,8 @@
     }
     t.classList.remove("toast-persistent");
     t.removeAttribute("aria-busy");
+    if (sp) sp.hidden = true;
+    t.classList.remove("toast-with-spinner");
     showToast._timer = setTimeout(function () {
       t.hidden = true;
     }, 2800);
@@ -339,6 +357,23 @@
     }
   }
 
+  var VOICE_ICON_SPEAKER_SVG =
+    '<svg class="ctrl-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a9 9 0 0 1 0 14.14"/></svg>';
+  var VOICE_ICON_STOP_SVG =
+    '<svg class="ctrl-btn-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"/></svg>';
+
+  function voiceButtonInnerHtml(isRecording) {
+    var icon = isRecording ? VOICE_ICON_STOP_SVG : VOICE_ICON_SPEAKER_SVG;
+    var label = isRecording ? "Stop" : "Audio";
+    return (
+      '<span class="ctrl-btn-inner">' +
+      icon +
+      '<span class="ctrl-btn-text">' +
+      label +
+      "</span></span>"
+    );
+  }
+
   function updateVoiceUi() {
     var btn = $("btn-voice");
     var clr = $("btn-voice-clear");
@@ -347,7 +382,7 @@
     if (!btn || !clr) return;
     var micOff = !state.settings.microphoneEnabled;
     btn.classList.toggle("is-recording", state.voiceRecording);
-    btn.textContent = state.voiceRecording ? "Stop" : "Voice";
+    btn.innerHTML = voiceButtonInnerHtml(state.voiceRecording);
     btn.disabled = micOff && !state.voiceRecording;
     var has = !!(state.voiceNote && String(state.voiceNote).trim());
     clr.hidden = !has;
@@ -1223,7 +1258,11 @@
     var conflictRule = hasVoice
       ? " When a voice recording was provided and it conflicts with the photos on any fact, follow the voice for that fact, then set dropdowns to match the narrative you chose (voice wins every such conflict)."
       : " Set the dropdown to match what you state in prose and what the image shows.";
+    var voiceFieldsRule = hasVoice
+      ? "VOICE → STRUCTURED FIELDS: Treat the recording as the resident answering the city form aloud. Map anything they say that matches a catalog key into `fields` using EXACT dropdown strings (e.g. spoken “yes there’s water” → set `running_water` to the matching Yes option; spoken colors, plate numbers, sizes, yes/no, addresses, or hazard details → fill the corresponding keys). Do not leave a required key empty if the audio clearly states the answer, even when the photo is unclear. Use optional keys when the voice gives that detail. "
+      : "";
     return (
+      voiceFieldsRule +
       "Field keys by category (use these exact keys in `fields` for the category you choose). " +
       "Populate required keys whenever the photos, voice, or context support them. " +
       "Also populate OPTIONAL keys whenever there is clear evidence—do not skip optional fields if you can reasonably infer them (e.g. vehicle color, presence of debris, time of day mentioned in audio). " +
@@ -1239,12 +1278,13 @@
   function geminiPromptText(hasVoice) {
     var appendix = geminiCategoryFieldsAppendix(!!hasVoice);
     var mediaInstructions = hasVoice
-      ? "The resident’s voice audio is attached in the message immediately after this text (before any images). Listen to the entire recording. Use photos for supporting detail, but whenever spoken words and a photo disagree on any factual point—what the problem is, category, location, severity, water or gas, or what object is shown—the VOICE is authoritative: set category, description, location, and every `fields` value to match what they said. If the voice is silent on something visible in a photo and the photo does not contradict the voice, you may include that detail.\n"
+      ? "The resident’s voice audio is attached in the message immediately after this text (before any images). Listen to the entire recording and use it to fill BOTH the narrative (description, location) AND the structured `fields` object for your chosen category—anything they state that maps to a catalog key must appear in `fields` with the correct exact option text. Use photos for supporting detail, but whenever spoken words and a photo disagree on any factual point—what the problem is, category, location, severity, water or gas, or what object is shown—the VOICE is authoritative: set category, description, location, and every `fields` value to match what they said. If the voice is silent on something visible in a photo and the photo does not contradict the voice, you may include that detail.\n"
       : "Use every image and the full voice audio if provided (voice may describe the issue when photos are missing or unclear).\n";
     return (
       "You classify Philadelphia 311-style civic issues from the user’s photos, optional voice note, and location hint.\n" +
       mediaInstructions +
       "Also judge whether this is worth submitting to the city at all.\n" +
+      "SELF-SERVICE / DIY: If the photos (or voice) show something the resident can reasonably handle without 311—bagging leaves or yard waste on their own lot, moving their own belongings from a stoop or sidewalk edge, taking out trash they control, small private-property upkeep, a spill or mess they could clean, routine indoor issues, or anything that is clearly a personal or household task rather than city infrastructure—set `worth_submitting` to false unless there is also a separate, clear public-right-of-way or city-service issue. When you set it false for that reason, `submission_advice` must briefly suggest they can likely take care of it themselves (one concrete tip), not only say “don’t submit.”\n" +
       "Before returning JSON, mentally check: the free-text `description` must not contradict any structured `fields` value (e.g. if you mention water pooling in the pothole, `running_water` must be the \"Yes — call Water Emergency…\" option, not \"No\").\n" +
       "Return ONLY a single JSON object (no markdown) with exactly these keys:\n" +
       '"category" (string, one of: ' +
@@ -1254,13 +1294,13 @@
       "),\n" +
       '"description" (string, concise professional report for city staff; must be consistent with every `fields` dropdown you output),\n' +
       '"location" (string, human-readable Philadelphia address, intersection, or neighborhood; match the device hint when provided; if truly unknown use Unknown Philadelphia location—not Location to be confirmed),\n' +
-      '"fields" (object: string values only. For your chosen category, use ONLY the keys listed for that category in the catalog at the end of this prompt. Each value must be an exact catalog option where the catalog shows (required/optional) after a select-style key. Fill required keys when observable; actively fill OPTIONAL keys too when images, voice, or context give reasonable evidence. Use exact key names; omit only keys you cannot infer. Narrative and structured answers must match' +
+      '"fields" (object: string values only. For your chosen category, use ONLY the keys listed for that category in the catalog at the end of this prompt. Each value must be an exact catalog option where the catalog shows (required/optional) after a select-style key. Fill required keys when observable from images OR when clearly stated in the voice recording; actively fill OPTIONAL keys too when images, voice, or context give reasonable evidence. Use exact key names; omit only keys you cannot infer. Narrative and structured answers must match' +
       (hasVoice
-        ? "; if voice and images conflict, derive fields from the voice."
+        ? ". If a voice note is included: extract spoken facts into `fields` (not only into description)—treat audio as first-class evidence for every catalog key it applies to. If voice and images conflict on a fact, derive that field from the voice."
         : "") +
       "),\n" +
-      '"worth_submitting" (boolean: true only if photos and/or voice describe a clear, actionable civic issue 311 could address in Philadelphia — false for selfies, memes, blank/blurry/unusable photos, silence or unrelated audio, purely private indoor matters, obvious jokes, off-topic content, or nothing that sounds or looks like infrastructure, sanitation, safety, or public-space problems),\n' +
-      '"submission_advice" (string: one short sentence to the resident explaining why it is or is not worth sending to 311).\n' +
+      '"worth_submitting" (boolean: true only if photos and/or voice describe a clear, actionable civic issue 311 could address in Philadelphia — false for selfies, memes, blank/blurry/unusable photos, silence or unrelated audio, obvious jokes, off-topic content, nothing that sounds or looks like infrastructure/sanitation/safety/public-space problems, OR scenes where the issue is something the resident can plausibly fix themselves without the city as described in SELF-SERVICE / DIY above),\n' +
+      '"submission_advice" (string: one or two short sentences for the resident. If worth_submitting is false because they can handle it themselves, say so plainly and give one practical suggestion (e.g. bag leaves for sanitation day, move your own bins). Otherwise explain why 311 is or is not a good fit.)\n' +
       "Location hint from user device:\n" +
       locationHint() +
       (appendix ? "\n\n" + appendix : "")
@@ -2345,7 +2385,7 @@
       showToast("Add at least one photo or a voice note to generate a report.");
       return;
     }
-    showToast("Analyzing with AI…", { persistent: true });
+    showToast("Analyzing with AI…", { persistent: true, loading: true });
     function runAiAfterLocation() {
       callGemini(imgs, voice)
         .then(function (ai) {
