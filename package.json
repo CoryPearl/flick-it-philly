@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "postinstall": "node scripts/inline-web.js",
-    "bundle-web": "node scripts/inline-web.js",
+    "postinstall": "node scripts/build-locales.cjs && node scripts/inline-web.js",
+    "bundle-web": "node scripts/build-locales.cjs && node scripts/inline-web.js",
     "check-gemini": "node scripts/check-gemini.js",
     "start": "expo start",
     "android": "expo start --android",

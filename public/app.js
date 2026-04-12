@@ -21,6 +21,420 @@
 
   var CATEGORIES = flickCategoriesList();
 
+  var UI_LANG_CODES = ["en", "es", "fr", "ja", "zh", "hi", "ar", "bn"];
+
+  function normalizeUiLanguage(code) {
+    var c = String(code == null ? "" : code).trim().toLowerCase();
+    if (c === "zh-cn" || c === "zh_cn" || c === "zho") c = "zh";
+    if (c.indexOf("zh") === 0) c = "zh";
+    if (UI_LANG_CODES.indexOf(c) >= 0) return c;
+    return "en";
+  }
+
+  /** Localized category labels for UI only; slugs and submitted `fields` stay English. */
+  var CATEGORY_LABELS_BY_LANG = {
+    es: {
+    abandoned_automobile: "Vehículo abandonado",
+    abandoned_bicycle: "Bicicleta abandonada",
+    construction_complaint: "Queja por construcción",
+    dangerous_building_complaint: "Edificio peligroso",
+    dangerous_sidewalk: "Acera peligrosa",
+    fire_safety_complaint: "Seguridad contra incendios",
+    graffiti_removal_request: "Eliminación de grafitis",
+    homeless_encampment: "Asentamiento informal",
+    illegal_dumping: "Vertido ilegal",
+    inlet_cleaning: "Limpieza de sumidero",
+    maintenance_complaint: "Queja de mantenimiento",
+    park_trail_conditions: "Parque y senderos",
+    plastic_bag_ban_complaint: "Bolsa de plástico",
+    pothole_repair: "Baches",
+    private_tree_complaint: "Árbol en propiedad privada",
+    recycling_collection: "Reciclaje",
+    right_of_way: "Servidumbre de paso",
+    rubbish_collection: "Recogida de basura",
+    short_term_rental_complaint: "Alquiler temporal",
+    smoke_alarm_request: "Detector de humo",
+    street_light_out: "Alumbrado público",
+    traffic_calming_request: "Calma de tráfico",
+    traffic_sign_complaint: "Señal de tráfico",
+    traffic_signal_emergency: "Semáforo (emergencia)",
+    trash_hauler_noise_complaint: "Ruido de camión de basura",
+    unlicensed_business_complaint: "Negocio sin licencia",
+    vacant_lot_cleanup: "Lote baldío",
+    vacant_property_complaint: "Propiedad vacante",
+    water_issue: "Agua / hidrante / inundación",
+    other: "Otro",
+    },
+  };
+
+  var I18N = {
+    en: {
+      "nav.home": "Home",
+      "nav.camera": "Camera",
+      "nav.settings": "Settings",
+      "nav.main_aria": "Main navigation",
+      "set.title": "Settings",
+      "set.dark": "Dark mode",
+      "set.location": "Use device location",
+      "set.camera": "Use device camera",
+      "set.microphone": "Use microphone",
+      "set.language": "Language",
+      "set.open_app": "Open app settings",
+      "set.help_blocked":
+        "Use this if the camera or microphone prompt was blocked or the live view won’t start.",
+      "set.clear": "Clear all local data",
+      "home.title": "Flick It Philly",
+      "home.reports": "Your reports",
+      "home.empty":
+        "No reports yet. Use the camera to add photos and/or a voice note, then generate a report. Tap a saved concern for details or submit later.",
+      "home.map_title_all": "All reports to 311",
+      "home.map_title_mine": "Your reports to 311",
+      "home.map_desc":
+        "Map shows the last 30 days only. Your submitted concerns are yellow (pending) or green (completed). With Everyone, red and blue dots are real Philly 311 cases from open data (open / closed). Drafts stay off the map.",
+      "map.view": "View",
+      "map.mine": "Mine only",
+      "map.everyone": "Everyone",
+      "map.category": "Category",
+      "map.all_types": "All types",
+      "map.count_none_yours": "No matching reports on the map.",
+      "map.count_yours":
+        "{n} report{s} on map (yours)",
+      "map.count_none": "No matching reports on the map.",
+      "map.count_mix":
+        "{t} reports on map ({y} yours · {c} city). Tap a cluster to zoom in; tap a dot for details.",
+      "cam.slots_aria": "Photo slots, remove with the X button",
+      "cam.overlay":
+        "Add photos and/or a voice note, then Report",
+      "cam.off": "Camera off",
+      "cam.off_help":
+        "Turn on “Use device camera” in the Settings tab.",
+      "cam.unavail": "Camera unavailable",
+      "cam.allow": "Allow camera in the Settings tab.",
+      "cam.take_photo": "Take a photo",
+      "cam.native_help":
+        "Tap the round capture button to open your device camera.",
+      "cam.pinch_help": "Pinch the preview with two fingers to zoom.",
+      "cam.gallery": "Gallery",
+      "cam.gallery_aria": "Upload photos from your gallery",
+      "cam.report": "Report",
+      "cam.preview_aria": "Live camera feed",
+      "cam.capture_aria": "Take photo",
+      "cam.generate_aria": "Generate report from photos and audio",
+      "voice.audio": "Audio",
+      "voice.stop": "Stop",
+      "voice.recording": "Recording…",
+      "voice.ready": "Voice note ready — tap play to replay",
+      "voice.mic_off": "Microphone is off in Settings.",
+      "voice.btn_aria": "Record or stop voice note",
+      "voice.clear": "Clear voice",
+      "voice.clear_aria": "Remove voice note",
+      "voice.playback_aria": "Replay voice note",
+      "voice.playback_heading": "Voice note",
+      "modal.confirm_title": "Use this photo?",
+      "modal.confirm_img_alt": "Selected photo",
+      "modal.retake": "Retake",
+      "modal.accept": "Accept",
+      "modal.report_title": "Edit report",
+      "modal.ai_heading": "AI review",
+      "modal.category": "Category",
+      "modal.description": "Description",
+      "modal.location": "Location (address)",
+      "modal.loc_meta":
+        "Required — street address or intersection",
+      "modal.loc_detail": "street address or intersection",
+      "modal.loc_ph": "Required: street address or intersection",
+      "modal.desc_staff_hint": "general description for city staff.",
+      "modal.desc_optional_hint": "add details if helpful.",
+      "modal.primary_note":
+        "Your first photo is sent automatically as the primary image with this report.",
+      "modal.offline":
+        "You’re offline or AI failed — fill in the form manually.",
+      "modal.cancel": "Cancel",
+      "modal.close": "Close",
+      "modal.save": "Save concern",
+      "modal.submit": "Submit concern",
+      "modal.triage_no":
+        "This doesn’t look like a typical 311 issue. Submission is disabled for this draft.",
+      "modal.triage_yes":
+        "This looks like something Philadelphia 311 can act on. Double-check the details, then submit if it’s accurate.",
+      "detail.title": "Your concern",
+      "detail.close": "Close",
+      "detail.edit": "Edit",
+      "detail.submit": "Submit",
+      "detail.delete": "Delete",
+      "detail.ai_low": " · AI: low priority for 311",
+      "detail.no_photos": "No photos attached.",
+      "toast.mic_settings": "Turn on the microphone in Settings to record.",
+      "toast.mic_unsupported":
+        "Voice needs the app or a browser that supports microphone recording.",
+      "toast.mic_denied": "Could not access the microphone.",
+      "toast.loc_settings": "Turn on location in Settings to use this.",
+      "toast.loc_unavail": "Location isn’t available on this device.",
+      "toast.loc_read": "Couldn’t read your position.",
+      "toast.loc_perm": "Couldn’t get your location. Check permissions.",
+      "toast.submitted_demo":
+        "Sent to 311 — pending until the city processes it.",
+      "toast.submitted_local":
+        "Sent on this device. Set FLICK_311_DEMO_URL in .env and restart Expo to sync the demo dashboard.",
+      "toast.saved_demo": "Saved. Demo dashboard updated.",
+      "toast.saved": "Concern saved on this device.",
+      "toast.app_settings": "Opening system settings…",
+      "toast.data_cleared": "Local data cleared.",
+      "modal.triage_prefix": "Worth submitting: ",
+      "field.required": "Required",
+      "field.optional": "Optional",
+      "field.select_ph": "Select…",
+      "field.optional_dash": "—",
+      "map.legend_title": "Key",
+      "map.legend_region": "Map legend",
+      "map.legend_user_pending": "Your report — pending",
+      "map.legend_user_done": "Your report — completed",
+      "map.legend_city_open": "Philly 311 data — pending",
+      "map.legend_city_closed": "Philly 311 data — completed",
+      "map.locate_aria": "Go to my location",
+      "map.filters_aria": "Map filters",
+      "detail.submit311": "Submit to 311",
+      "detail.row_category": "Category",
+      "detail.row_description": "Description",
+      "detail.row_location": "Location",
+      "detail.row_ai_note": "AI note",
+      "detail.photo_alt": "Report photo",
+      "detail.voice_aria": "Voice note",
+      "status.completed": "Completed",
+      "status.pending": "Pending",
+      "status.submitted": "Submitted",
+      "status.saved": "Saved",
+      "home.no_location": "No location",
+      "home.ai_low_flag": "AI: low priority",
+      "home.no_image": "No image",
+      "slot.remove_aria": "Remove photo",
+      "slot.photo": "Photo {n}",
+      "confirm.clear_title": "Clear all data",
+      "confirm.clear_message":
+        "Delete all saved reports and settings on this device?",
+      "confirm.delete_all": "Delete all",
+      "confirm.delete_title": "Delete",
+      "confirm.delete_message": "Delete this concern? This cannot be undone.",
+      "confirm.delete": "Delete",
+      "confirm.default": "Confirm",
+      "app.ok": "OK",
+      "val.location": "Address (Location) is required.",
+      "val.description": "Description is required for this request type.",
+      "val.field": "Please fill required field: {field}.",
+      "toast.analyzing": "Analyzing with AI…",
+      "toast.camera_not_ready":
+        "Camera not ready. Check permissions or use Gallery.",
+      "toast.need_media":
+        "Add at least one photo or a voice note to generate a report.",
+      "toast.slots_partial": "Only {n} empty slot(s); extra files skipped.",
+      "toast.demo_unreachable":
+        "Could not reach the demo 311 server. Same Wi‑Fi? Check FLICK_311_DEMO_URL and run npm run 311-demo.",
+      "toast.concern_not_found": "Concern not found.",
+      "toast.completed_no_edit": "This report is completed — it can’t be edited.",
+      "toast.deleted": "Concern deleted.",
+      "toast.slots_full": "All 5 photo slots are full.",
+    },
+    es: {
+      "nav.home": "Inicio",
+      "nav.camera": "Cámara",
+      "nav.settings": "Ajustes",
+      "nav.main_aria": "Navegación principal",
+      "set.title": "Ajustes",
+      "set.dark": "Modo oscuro",
+      "set.location": "Usar ubicación del dispositivo",
+      "set.camera": "Usar cámara del dispositivo",
+      "set.microphone": "Usar micrófono",
+      "set.language": "Idioma",
+      "set.open_app": "Abrir ajustes de la app",
+      "set.help_blocked":
+        "Úsalo si bloqueaste el permiso de cámara o micrófono o no arranca la vista en vivo.",
+      "set.clear": "Borrar todos los datos locales",
+      "home.title": "Flick It Philly",
+      "home.reports": "Tus reportes",
+      "home.empty":
+        "Aún no hay reportes. Usa la cámara para añadir fotos y/o una nota de voz, luego genera un reporte. Toca un borrador para ver detalles o enviarlo después.",
+      "home.map_title_all": "Todos los reportes a 311",
+      "home.map_title_mine": "Tus reportes a 311",
+      "home.map_desc":
+        "El mapa muestra solo los últimos 30 días. Tus envíos aparecen en amarillo (pendiente) o verde (completado). Con Todos, los puntos rojos y azules son casos reales de 311 de datos abiertos (abierto / cerrado). Los borradores no aparecen.",
+      "map.view": "Vista",
+      "map.mine": "Solo míos",
+      "map.everyone": "Todos",
+      "map.category": "Categoría",
+      "map.all_types": "Todos los tipos",
+      "map.count_none_yours": "No hay reportes coincidentes en el mapa.",
+      "map.count_yours": "{n} reporte{s} en el mapa (tuyos)",
+      "map.count_none": "No hay reportes coincidentes en el mapa.",
+      "map.count_mix":
+        "{t} reportes en el mapa ({y} tuyos · {c} ciudad). Toca un grupo para acercar; toca un punto para detalles.",
+      "cam.slots_aria": "Ranuras de fotos; quita con la X",
+      "cam.overlay":
+        "Añade fotos y/o una nota de voz, luego Reporte",
+      "cam.off": "Cámara apagada",
+      "cam.off_help":
+        "Activa “Usar cámara del dispositivo” en la pestaña Ajustes.",
+      "cam.unavail": "Cámara no disponible",
+      "cam.allow": "Permite la cámara en la pestaña Ajustes.",
+      "cam.take_photo": "Tomar una foto",
+      "cam.native_help":
+        "Toca el botón redondo para abrir la cámara del dispositivo.",
+      "cam.pinch_help": "Pellizca la vista previa con dos dedos para zoom.",
+      "cam.gallery": "Galería",
+      "cam.gallery_aria": "Subir fotos desde la galería",
+      "cam.report": "Reporte",
+      "cam.preview_aria": "Vista en vivo de la cámara",
+      "cam.capture_aria": "Tomar foto",
+      "cam.generate_aria": "Generar reporte desde fotos y audio",
+      "voice.audio": "Audio",
+      "voice.stop": "Detener",
+      "voice.recording": "Grabando…",
+      "voice.ready": "Nota de voz lista — toca reproducir",
+      "voice.mic_off": "El micrófono está desactivado en Ajustes.",
+      "voice.btn_aria": "Grabar o detener nota de voz",
+      "voice.clear": "Borrar voz",
+      "voice.clear_aria": "Quitar nota de voz",
+      "voice.playback_aria": "Reproducir nota de voz",
+      "voice.playback_heading": "Nota de voz",
+      "modal.confirm_title": "¿Usar esta foto?",
+      "modal.confirm_img_alt": "Foto seleccionada",
+      "modal.retake": "Repetir",
+      "modal.accept": "Aceptar",
+      "modal.report_title": "Editar reporte",
+      "modal.ai_heading": "Revisión IA",
+      "modal.category": "Categoría",
+      "modal.description": "Descripción",
+      "modal.location": "Ubicación (dirección)",
+      "modal.loc_meta":
+        "Obligatorio — calle o cruce",
+      "modal.loc_detail": "calle o intersección",
+      "modal.loc_ph": "Obligatorio: dirección o cruce",
+      "modal.desc_staff_hint": "descripción general para el personal municipal.",
+      "modal.desc_optional_hint": "añade detalles si ayuda.",
+      "modal.primary_note":
+        "La primera foto se envía automáticamente como imagen principal con este reporte.",
+      "modal.offline":
+        "Sin conexión o falló la IA — completa el formulario a mano.",
+      "modal.cancel": "Cancelar",
+      "modal.close": "Cerrar",
+      "modal.save": "Guardar borrador",
+      "modal.submit": "Enviar reporte",
+      "modal.triage_no":
+        "No parece un caso típico de 311. El envío está desactivado para este borrador.",
+      "modal.triage_yes":
+        "Parece algo en lo que Philadelphia 311 puede actuar. Revisa los datos y envía si es correcto.",
+      "detail.title": "Tu reporte",
+      "detail.close": "Cerrar",
+      "detail.edit": "Editar",
+      "detail.submit": "Enviar",
+      "detail.delete": "Eliminar",
+      "detail.ai_low": " · IA: baja prioridad para 311",
+      "detail.no_photos": "Sin fotos adjuntas.",
+      "toast.mic_settings": "Activa el micrófono en Ajustes para grabar.",
+      "toast.mic_unsupported":
+        "La voz requiere la app o un navegador compatible con grabación.",
+      "toast.mic_denied": "No se pudo acceder al micrófono.",
+      "toast.loc_settings": "Activa la ubicación en Ajustes para usar esto.",
+      "toast.loc_unavail": "La ubicación no está disponible en este dispositivo.",
+      "toast.loc_read": "No se pudo leer tu posición.",
+      "toast.loc_perm": "No se obtuvo tu ubicación. Revisa los permisos.",
+      "toast.submitted_demo":
+        "Enviado a 311 — pendiente hasta que la ciudad lo procese.",
+      "toast.submitted_local":
+        "Enviado en este dispositivo. Configura FLICK_311_DEMO_URL en .env y reinicia Expo para el panel demo.",
+      "toast.saved_demo": "Guardado. Panel demo actualizado.",
+      "toast.saved": "Borrador guardado en este dispositivo.",
+      "toast.app_settings": "Abriendo ajustes del sistema…",
+      "toast.data_cleared": "Datos locales borrados.",
+      "modal.triage_prefix": "Conviene enviarlo: ",
+      "field.required": "Obligatorio",
+      "field.optional": "Opcional",
+      "field.select_ph": "Elegir…",
+      "field.optional_dash": "—",
+      "map.legend_title": "Leyenda",
+      "map.legend_region": "Leyenda del mapa",
+      "map.legend_user_pending": "Tu reporte — pendiente",
+      "map.legend_user_done": "Tu reporte — completado",
+      "map.legend_city_open": "Datos 311 de Filadelfia — pendiente",
+      "map.legend_city_closed": "Datos 311 de Filadelfia — completado",
+      "map.locate_aria": "Ir a mi ubicación",
+      "map.filters_aria": "Filtros del mapa",
+      "detail.submit311": "Enviar a 311",
+      "detail.row_category": "Categoría",
+      "detail.row_description": "Descripción",
+      "detail.row_location": "Ubicación",
+      "detail.row_ai_note": "Nota de IA",
+      "detail.photo_alt": "Foto del reporte",
+      "detail.voice_aria": "Nota de voz",
+      "status.completed": "Completado",
+      "status.pending": "Pendiente",
+      "status.submitted": "Enviado",
+      "status.saved": "Guardado",
+      "home.no_location": "Sin ubicación",
+      "home.ai_low_flag": "IA: baja prioridad",
+      "home.no_image": "Sin imagen",
+      "slot.remove_aria": "Quitar foto",
+      "slot.photo": "Foto {n}",
+      "confirm.clear_title": "Borrar todos los datos",
+      "confirm.clear_message":
+        "¿Eliminar todos los reportes guardados y la configuración en este dispositivo?",
+      "confirm.delete_all": "Eliminar todo",
+      "confirm.delete_title": "Eliminar",
+      "confirm.delete_message":
+        "¿Eliminar este reporte? No se puede deshacer.",
+      "confirm.delete": "Eliminar",
+      "confirm.default": "Confirmar",
+      "app.ok": "Aceptar",
+      "val.location": "La dirección (ubicación) es obligatoria.",
+      "val.description":
+        "La descripción es obligatoria para este tipo de solicitud.",
+      "val.field": "Completa el campo obligatorio: {field}.",
+      "toast.analyzing": "Analizando con IA…",
+      "toast.camera_not_ready":
+        "Cámara no lista. Revisa permisos o usa la galería.",
+      "toast.need_media":
+        "Añade al menos una foto o una nota de voz para generar el reporte.",
+      "toast.slots_partial":
+        "Solo {n} ranura(s) vacía(s); se omitieron archivos extra.",
+      "toast.demo_unreachable":
+        "No se alcanzó el servidor demo 311. ¿Misma Wi‑Fi? Revisa FLICK_311_DEMO_URL y ejecuta npm run 311-demo.",
+      "toast.concern_not_found": "No se encontró el reporte.",
+      "toast.completed_no_edit":
+        "Este reporte está completado — no se puede editar.",
+      "toast.deleted": "Reporte eliminado.",
+      "toast.slots_full": "Las 5 ranuras de fotos están llenas.",
+    },
+  };
+
+  (function mergeFlickExtraLocales() {
+    var w = typeof window !== "undefined" ? window : null;
+    if (!w) return;
+    var b = w.__FLICK_LOCALES_BUNDLE;
+    if (b && typeof b === "object") {
+      if (b.i18n && typeof b.i18n === "object") {
+        Object.keys(b.i18n).forEach(function (k) {
+          I18N[k] = Object.assign({}, I18N.en, b.i18n[k]);
+        });
+      }
+      if (b.categories && typeof b.categories === "object") {
+        Object.keys(b.categories).forEach(function (k) {
+          CATEGORY_LABELS_BY_LANG[k] = b.categories[k];
+        });
+      }
+    }
+    var ix = w.__FLICK_I18N_EXTRA;
+    if (ix && typeof ix === "object") {
+      Object.keys(ix).forEach(function (k) {
+        I18N[k] = Object.assign({}, I18N.en, ix[k]);
+      });
+    }
+    var cx = w.__FLICK_CATEGORY_LABELS_EXTRA;
+    if (cx && typeof cx === "object") {
+      Object.keys(cx).forEach(function (k) {
+        CATEGORY_LABELS_BY_LANG[k] = cx[k];
+      });
+    }
+  })();
+
   function normalizeCategorySlug(slug) {
     if (!slug) return slug;
     var m =
@@ -73,6 +487,7 @@
           locationEnabled: s.locationEnabled !== false,
           cameraEnabled: s.cameraEnabled !== false,
           microphoneEnabled: s.microphoneEnabled !== false,
+          uiLanguage: normalizeUiLanguage(s.uiLanguage),
         };
       }
     } catch (e) {}
@@ -81,6 +496,7 @@
       locationEnabled: true,
       cameraEnabled: true,
       microphoneEnabled: true,
+      uiLanguage: "en",
     };
   }
 
@@ -189,9 +605,7 @@
     var base = get311DemoUrl();
     if (!base || !r || !r.id) return;
     function warnReach() {
-      showToast(
-        "Could not reach the demo 311 server. Same Wi‑Fi? Check FLICK_311_DEMO_URL and run npm run 311-demo."
-      );
+      showToast(tr("toast.demo_unreachable"));
     }
     try {
       fetch(base + "/api/requests", {
@@ -269,6 +683,38 @@
   }
 
   function categoryLabel(value) {
+    var slug = null;
+    var en = null;
+    for (var i = 0; i < CATEGORIES.length; i++) {
+      if (CATEGORIES[i].value === value) {
+        slug = CATEGORIES[i].value;
+        en = CATEGORIES[i].label;
+        break;
+      }
+    }
+    if (!en) {
+      var resolved = resolveCategoryFromAi(value);
+      for (var j = 0; j < CATEGORIES.length; j++) {
+        if (CATEGORIES[j].value === resolved) {
+          slug = CATEGORIES[j].value;
+          en = CATEGORIES[j].label;
+          break;
+        }
+      }
+    }
+    if (!en) en = (value || "Report").replace(/_/g, " ");
+    if (!slug) slug = resolveCategoryFromAi(value || "other");
+    var lang =
+      typeof state !== "undefined" && state && state.settings
+        ? normalizeUiLanguage(state.settings.uiLanguage)
+        : "en";
+    var locMap = CATEGORY_LABELS_BY_LANG[lang];
+    if (locMap && locMap[slug]) return locMap[slug];
+    return en;
+  }
+
+  /** English catalog label for matching city open-data text (UI may be Spanish). */
+  function categoryEnglishLabel(value) {
     for (var i = 0; i < CATEGORIES.length; i++) {
       if (CATEGORIES[i].value === value) return CATEGORIES[i].label;
     }
@@ -279,9 +725,27 @@
     return (value || "Report").replace(/_/g, " ");
   }
 
+  function numberLocaleForUi() {
+    if (typeof state === "undefined" || !state || !state.settings) {
+      return "en-US";
+    }
+    var u = normalizeUiLanguage(state.settings.uiLanguage);
+    var m = {
+      en: "en-US",
+      es: "es-US",
+      fr: "fr-FR",
+      ja: "ja-JP",
+      zh: "zh-CN",
+      hi: "hi-IN",
+      ar: "ar-SA",
+      bn: "bn-BD",
+    };
+    return m[u] || "en-US";
+  }
+
   function formatTime(ts) {
     var d = new Date(ts);
-    return d.toLocaleString(undefined, {
+    return d.toLocaleString(numberLocaleForUi(), {
       month: "short",
       day: "numeric",
       hour: "numeric",
@@ -308,10 +772,10 @@
   }
 
   function concernStatusLabel(r) {
-    if (r.status === "completed") return "Completed";
-    if (r.status === "pending") return "Pending";
-    if (r.status === "submitted") return "Submitted";
-    return "Saved";
+    if (r.status === "completed") return tr("status.completed");
+    if (r.status === "pending") return tr("status.pending");
+    if (r.status === "submitted") return tr("status.submitted");
+    return tr("status.saved");
   }
 
   function concernStatusPillClass(r) {
@@ -475,25 +939,23 @@
     var hint = $("camera-overlay-hint");
     if (kind === "off") {
       setCameraOverlayMode("off");
-      title.textContent = "Camera off";
-      hint.textContent =
-        'Turn on “Use device camera” in the Settings tab.';
+      title.textContent = tr("cam.off");
+      hint.textContent = tr("cam.off_help");
       hint.hidden = false;
     } else if (kind === "blocked") {
       setCameraOverlayMode("error");
-      title.textContent = "Camera unavailable";
-      hint.textContent = "Allow camera in the Settings tab.";
+      title.textContent = tr("cam.unavail");
+      hint.textContent = tr("cam.allow");
       hint.hidden = false;
     } else if (kind === "android-native") {
       setCameraOverlayMode("native");
-      title.textContent = "Take a photo";
-      hint.textContent =
-        "Tap the round capture button to open your device camera.";
+      title.textContent = tr("cam.take_photo");
+      hint.textContent = tr("cam.native_help");
       hint.hidden = false;
     } else {
       setCameraOverlayMode("live");
-      title.textContent = "Add photos and/or a voice note, then Report";
-      hint.textContent = "Pinch the preview with two fingers to zoom.";
+      title.textContent = tr("cam.overlay");
+      hint.textContent = tr("cam.pinch_help");
       hint.hidden = false;
     }
   }
@@ -592,14 +1054,14 @@
     }
   }
 
-  var VOICE_ICON_SPEAKER_SVG =
-    '<svg class="ctrl-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a9 9 0 0 1 0 14.14"/></svg>';
+  var VOICE_ICON_MIC_SVG =
+    '<svg class="ctrl-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
   var VOICE_ICON_STOP_SVG =
     '<svg class="ctrl-btn-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"/></svg>';
 
   function voiceButtonInnerHtml(isRecording) {
-    var icon = isRecording ? VOICE_ICON_STOP_SVG : VOICE_ICON_SPEAKER_SVG;
-    var label = isRecording ? "Stop" : "Audio";
+    var icon = isRecording ? VOICE_ICON_STOP_SVG : VOICE_ICON_MIC_SVG;
+    var label = isRecording ? tr("voice.stop") : tr("voice.audio");
     return (
       '<span class="ctrl-btn-inner">' +
       icon +
@@ -614,7 +1076,9 @@
     var clr = $("btn-voice-clear");
     var st = $("voice-status");
     var aud = $("voice-note-playback");
+    var playbackWrap = $("voice-playback-wrap");
     if (!btn || !clr) return;
+    btn.setAttribute("aria-label", tr("voice.btn_aria"));
     var micOff = !state.settings.microphoneEnabled;
     var locked = state.aiMediaLocked;
     btn.classList.toggle("is-recording", state.voiceRecording);
@@ -627,13 +1091,13 @@
     if (st) {
       if (state.voiceRecording) {
         st.hidden = false;
-        st.textContent = "Recording…";
+        st.textContent = tr("voice.recording");
       } else if (has) {
         st.hidden = false;
-        st.textContent = "Voice note ready — tap play to replay";
+        st.textContent = tr("voice.ready");
       } else if (micOff) {
         st.hidden = false;
-        st.textContent = "Microphone is off in Settings.";
+        st.textContent = tr("voice.mic_off");
       } else {
         st.hidden = true;
         st.textContent = "";
@@ -651,8 +1115,10 @@
           aud.load();
         } catch (e2) {}
         aud.hidden = true;
+        if (playbackWrap) playbackWrap.hidden = true;
       } else {
         aud.hidden = false;
+        if (playbackWrap) playbackWrap.hidden = false;
         if (voiceNotePlayerSrc !== state.voiceNote) {
           voiceNotePlayerSrc = state.voiceNote;
           setVoiceAudioElementSrc(aud, state.voiceNote);
@@ -687,13 +1153,11 @@
 
   function startBrowserVoiceRecording() {
     if (!state.settings.microphoneEnabled) {
-      showToast("Turn on the microphone in Settings to record a voice note.");
+      showToast(tr("toast.mic_settings"));
       return;
     }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      showToast(
-        "Voice needs the app or a browser that supports microphone recording."
-      );
+      showToast(tr("toast.mic_unsupported"));
       return;
     }
     navigator.mediaDevices
@@ -746,7 +1210,7 @@
         updateVoiceUi();
       })
       .catch(function () {
-        showToast("Could not access the microphone.");
+        showToast(tr("toast.mic_denied"));
       });
   }
 
@@ -774,11 +1238,135 @@
     map: null,
     /** Dim outside city + boundary stroke (below markers). */
     phlBackdropLayer: null,
+    /** City 311 open-data points (last 30 days). */
+    otherLayer: null,
     userLayer: null,
     lastPosition: null,
     /** home | camera | settings — kept in sync with showScreen */
     currentScreen: "camera",
+    /** false = map shows only this device’s submitted reports */
+    mapShowCity311: true,
+    /** "" = all categories; else category slug from map filter */
+    mapCategorySlug: "",
+    /** Last drawn map points for zoom re-cluster (no refetch) */
+    mapCachedUserItems: null,
+    mapCachedOtherItems: null,
+    mapZoomListenerBound: false,
+    mapRedrawTimer: null,
+    /** Report modal: Cancel vs Close label when language changes */
+    reportModalCancelIsClose: false,
   };
+
+  function uiLang() {
+    return normalizeUiLanguage(state.settings.uiLanguage);
+  }
+
+  function htmlDocLang() {
+    var u = uiLang();
+    return u === "zh" ? "zh-Hans" : u;
+  }
+
+  function tr(key, rep) {
+    var pack = I18N[uiLang()] || I18N.en;
+    var s = pack[key];
+    if (s == null) s = I18N.en[key];
+    if (s == null) return key;
+    if (rep && typeof rep === "object") {
+      Object.keys(rep).forEach(function (k) {
+        s = s.split("{" + k + "}").join(String(rep[k]));
+      });
+    }
+    return s;
+  }
+
+  function applyUiLanguage() {
+    document.documentElement.lang = htmlDocLang();
+    document.documentElement.dir = uiLang() === "ar" ? "rtl" : "ltr";
+    document.querySelectorAll("[data-i18n]").forEach(function (el) {
+      var k = el.getAttribute("data-i18n");
+      if (k) el.textContent = tr(k);
+    });
+    document.querySelectorAll("[data-i18n-placeholder]").forEach(function (el) {
+      var k = el.getAttribute("data-i18n-placeholder");
+      if (k) el.setAttribute("placeholder", tr(k));
+    });
+    document.querySelectorAll("[data-i18n-aria]").forEach(function (el) {
+      var k = el.getAttribute("data-i18n-aria");
+      if (k) el.setAttribute("aria-label", tr(k));
+    });
+    document.querySelectorAll("[data-i18n-alt]").forEach(function (el) {
+      var k = el.getAttribute("data-i18n-alt");
+      if (k) el.setAttribute("alt", tr(k));
+    });
+    syncLanguageSettingFlickSelect();
+    updateVoiceUi();
+    buildMapCategoryFilterOptions();
+    updateMapSectionUiFromState();
+    syncNavLabelsI18n();
+    if (!$("modal-report").hidden) {
+      refreshOpenReportModalButtons();
+      updateDescriptionRequiredHint();
+      updatePrimaryPhotoNote();
+    }
+    if (!$("modal-detail").hidden && state.detailConcernId) {
+      var dr = getRequestById(state.detailConcernId);
+      if (dr) renderConcernDetail(dr);
+    }
+    renderHomeList();
+    renderSlots();
+  }
+
+  function syncNavLabelsI18n() {
+    document.querySelectorAll(".nav-item[data-nav]").forEach(function (btn) {
+      var nav = btn.getAttribute("data-nav");
+      var lab = btn.querySelector(".nav-label");
+      if (!lab) return;
+      if (nav === "home") lab.textContent = tr("nav.home");
+      else if (nav === "camera") lab.textContent = tr("nav.camera");
+      else if (nav === "settings") lab.textContent = tr("nav.settings");
+    });
+  }
+
+  function refreshOpenReportModalButtons() {
+    if ($("modal-report").hidden) return;
+    var sav = $("btn-report-save");
+    var sub = $("btn-report-submit");
+    var can = $("btn-report-cancel");
+    if (sav) sav.textContent = tr("modal.save");
+    if (sub) sub.textContent = tr("modal.submit");
+    if (can) {
+      can.textContent = tr(
+        state.reportModalCancelIsClose ? "modal.close" : "modal.cancel"
+      );
+    }
+  }
+
+  function syncLanguageSettingFlickSelect() {
+    var root = $("settings-ui-language-root");
+    if (!root || typeof flickSelectPopulate !== "function") return;
+    flickSelectPopulate(
+      root,
+      [
+        { value: "en", label: "English" },
+        { value: "es", label: "Español (Spanish)" },
+        { value: "fr", label: "Français (French)" },
+        { value: "ja", label: "日本語 (Japanese)" },
+        { value: "zh", label: "中文（简体） (Chinese (Simplified))" },
+        { value: "hi", label: "हिन्दी (Hindi)" },
+        { value: "ar", label: "العربية (Arabic)" },
+        { value: "bn", label: "বাংলা (Bengali)" },
+      ],
+      normalizeUiLanguage(state.settings.uiLanguage)
+    );
+    var hid = $("set-ui-language");
+    if (hid) hid.value = normalizeUiLanguage(state.settings.uiLanguage);
+  }
+
+  function updateMapSectionUiFromState() {
+    var y = state.mapCachedUserItems ? state.mapCachedUserItems.length : 0;
+    var c = state.mapCachedOtherItems ? state.mapCachedOtherItems.length : 0;
+    updateMapSectionUi(y, c);
+  }
 
   window.__FLICK_APPLY_NATIVE_LOCATION = function () {
     var n = window.__FLICK_NATIVE_LOCATION__;
@@ -822,6 +1410,7 @@
     $("set-location").checked = state.settings.locationEnabled;
     $("set-camera").checked = state.settings.cameraEnabled;
     $("set-microphone").checked = state.settings.microphoneEnabled;
+    syncLanguageSettingFlickSelect();
   }
 
   function requestLocation() {
@@ -943,17 +1532,204 @@
     return m ? m[1] : "image/jpeg";
   }
 
-  function buildCategorySelect(selected) {
-    var sel = $("field-category");
-    sel.innerHTML = "";
-    var want = resolveCategoryFromAi(selected || "other");
-    CATEGORIES.forEach(function (c) {
-      var o = document.createElement("option");
-      o.value = c.value;
-      o.textContent = c.label;
-      sel.appendChild(o);
+  var FLICK_SELECT_OPEN = "flick-select-open";
+  var flickSelectGlobalsBound = false;
+
+  function flickSelectCloseAll(exceptRoot) {
+    document.querySelectorAll(".flick-select." + FLICK_SELECT_OPEN).forEach(
+      function (r) {
+        if (exceptRoot && r === exceptRoot) return;
+        flickSelectSetClosed(r);
+      }
+    );
+  }
+
+  function flickSelectClearPanelLayout(panel) {
+    if (!panel) return;
+    panel.style.cssText = "";
+    panel.hidden = true;
+  }
+
+  function flickSelectSetClosed(root) {
+    if (!root) return;
+    root.classList.remove(FLICK_SELECT_OPEN);
+    var panel = root.querySelector(".flick-select-panel");
+    var trigger = root.querySelector(".flick-select-trigger");
+    flickSelectClearPanelLayout(panel);
+    if (trigger) trigger.setAttribute("aria-expanded", "false");
+  }
+
+  function flickSelectPositionPanel(root) {
+    var trigger = root.querySelector(".flick-select-trigger");
+    var panel = root.querySelector(".flick-select-panel");
+    if (!trigger || !panel || panel.hidden) return;
+    var r = trigger.getBoundingClientRect();
+    var margin = 4;
+    var pad = 10;
+    var maxH = Math.max(
+      120,
+      Math.min(240, window.innerHeight - r.bottom - margin - pad)
+    );
+    var w = Math.min(r.width, window.innerWidth - pad * 2);
+    var left = Math.min(
+      Math.max(pad, r.left),
+      window.innerWidth - pad - w
+    );
+    panel.style.cssText =
+      "position:fixed;left:" +
+      left +
+      "px;top:" +
+      (r.bottom + margin) +
+      "px;width:" +
+      w +
+      "px;max-height:" +
+      maxH +
+      "px;z-index:260;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;";
+  }
+
+  function flickSelectClickOutside(ev) {
+    var t = ev.target;
+    if (t && typeof t.closest === "function") {
+      if (t.closest(".flick-select")) return;
+    }
+    flickSelectCloseAll();
+  }
+
+  function ensureFlickSelectGlobalListeners() {
+    if (flickSelectGlobalsBound) return;
+    flickSelectGlobalsBound = true;
+    document.addEventListener("click", flickSelectClickOutside);
+    document.addEventListener("keydown", function (ev) {
+      if (ev.key === "Escape") flickSelectCloseAll();
     });
-    sel.value = want;
+    window.addEventListener("resize", function () {
+      flickSelectCloseAll();
+    });
+    window.addEventListener(
+      "scroll",
+      function (ev) {
+        var t = ev.target;
+        if (t && typeof t.closest === "function") {
+          if (t.closest(".flick-select-panel")) return;
+        }
+        flickSelectCloseAll();
+      },
+      true
+    );
+  }
+
+  function flickSelectBindRoot(root) {
+    if (!root || root.dataset.flickSelectBound) return;
+    root.dataset.flickSelectBound = "1";
+    var trigger = root.querySelector(".flick-select-trigger");
+    var panel = root.querySelector(".flick-select-panel");
+    var hidden = root.querySelector('input[type="hidden"]');
+    if (!trigger || !panel || !hidden) return;
+
+    trigger.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      var wasOpen = root.classList.contains(FLICK_SELECT_OPEN);
+      flickSelectCloseAll();
+      if (!wasOpen) {
+        root.classList.add(FLICK_SELECT_OPEN);
+        panel.hidden = false;
+        trigger.setAttribute("aria-expanded", "true");
+        requestAnimationFrame(function () {
+          flickSelectPositionPanel(root);
+        });
+      }
+    });
+
+    panel.addEventListener(
+      "touchmove",
+      function (ev) {
+        ev.stopPropagation();
+      },
+      { passive: true }
+    );
+
+    panel.addEventListener("click", function (ev) {
+      ev.stopPropagation();
+      var opt = ev.target.closest(".flick-select-option");
+      if (!opt || !panel.contains(opt)) return;
+      ev.preventDefault();
+      var v = opt.getAttribute("data-value") || "";
+      var lab = opt.getAttribute("data-label") || opt.textContent || "";
+      hidden.value = v;
+      var valueSpan = root.querySelector(".flick-select-value");
+      if (valueSpan) valueSpan.textContent = lab;
+      panel.querySelectorAll(".flick-select-option").forEach(function (el) {
+        el.setAttribute(
+          "aria-selected",
+          el === opt ? "true" : "false"
+        );
+      });
+      flickSelectSetClosed(root);
+      hidden.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  }
+
+  /**
+   * @param {HTMLElement} root .flick-select
+   * @param {Array<{value:string,label:string}>} items
+   * @param {string} value
+   */
+  function flickSelectPopulate(root, items, value) {
+    ensureFlickSelectGlobalListeners();
+    flickSelectBindRoot(root);
+    var panel = root.querySelector(".flick-select-panel");
+    var hidden = root.querySelector('input[type="hidden"]');
+    var valueSpan = root.querySelector(".flick-select-value");
+    if (!panel || !hidden) return;
+    var v = value != null ? String(value) : "";
+    var found = false;
+    var matchLabel = null;
+    items.forEach(function (it) {
+      if (String(it.value) === v) {
+        found = true;
+        matchLabel = it.label;
+      }
+    });
+    if (!found) v = "";
+    hidden.value = v;
+    flickSelectSetClosed(root);
+    panel.innerHTML = "";
+    items.forEach(function (it) {
+      var row = document.createElement("div");
+      row.className = "flick-select-option";
+      row.setAttribute("role", "option");
+      row.setAttribute("data-value", it.value);
+      row.setAttribute("data-label", it.label);
+      row.setAttribute(
+        "aria-selected",
+        String(it.value) === (hidden.value || "") ? "true" : "false"
+      );
+      row.textContent = it.label;
+      panel.appendChild(row);
+    });
+    if (matchLabel == null) {
+      items.forEach(function (it) {
+        if (String(it.value) === (hidden.value || "")) {
+          matchLabel = it.label;
+        }
+      });
+    }
+    if (valueSpan) {
+      valueSpan.textContent =
+        matchLabel != null ? matchLabel : items.length ? items[0].label : "—";
+    }
+  }
+
+  function buildCategorySelect(selected) {
+    var root = $("field-category-root");
+    if (!root) return;
+    var want = resolveCategoryFromAi(selected || "other");
+    var items = [];
+    CATEGORIES.forEach(function (c) {
+      items.push({ value: c.value, label: categoryLabel(c.value) });
+    });
+    flickSelectPopulate(root, items, want);
   }
 
   function renderDynamicFields(category, fields) {
@@ -974,7 +1750,9 @@
       tag.className = def.required
         ? "field-tag field-tag-required"
         : "field-tag field-tag-optional";
-      tag.textContent = def.required ? "Required" : "Optional";
+      tag.textContent = def.required
+        ? tr("field.required")
+        : tr("field.optional");
       headRow.appendChild(head);
       headRow.appendChild(tag);
       lab.appendChild(headRow);
@@ -988,26 +1766,50 @@
         fields[def.key] == null ? "" : String(fields[def.key]);
       var ctrl;
       if (def.type === "select" && def.options && def.options.length) {
-        ctrl = document.createElement("select");
-        var blank = document.createElement("option");
-        blank.value = "";
-        blank.textContent = def.required ? "Select…" : "—";
-        ctrl.appendChild(blank);
-        def.options.forEach(function (opt) {
-          var o = document.createElement("option");
-          o.value = opt;
-          o.textContent = opt;
-          ctrl.appendChild(o);
+        var fsRoot = document.createElement("div");
+        fsRoot.className = "flick-select flick-select-dynamic";
+        var hid = document.createElement("input");
+        hid.type = "hidden";
+        hid.dataset.fieldKey = def.key;
+        hid.dataset.fieldRequired = def.required ? "1" : "0";
+        var fsTrigger = document.createElement("button");
+        fsTrigger.type = "button";
+        fsTrigger.className = "flick-select-trigger flick-select-trigger-form";
+        fsTrigger.setAttribute("aria-haspopup", "listbox");
+        fsTrigger.setAttribute("aria-expanded", "false");
+        var fsVal = document.createElement("span");
+        fsVal.className = "flick-select-value";
+        var fsChev = document.createElement("span");
+        fsChev.className = "flick-select-chevron";
+        fsChev.setAttribute("aria-hidden", "true");
+        fsTrigger.appendChild(fsVal);
+        fsTrigger.appendChild(fsChev);
+        var fsPanel = document.createElement("div");
+        fsPanel.className = "flick-select-panel";
+        fsPanel.setAttribute("role", "listbox");
+        fsPanel.hidden = true;
+        fsRoot.appendChild(hid);
+        fsRoot.appendChild(fsTrigger);
+        fsRoot.appendChild(fsPanel);
+        var fsItems = [];
+        fsItems.push({
+          value: "",
+          label: def.required ? tr("field.select_ph") : tr("field.optional_dash"),
         });
-        ctrl.value = val && def.options.indexOf(val) >= 0 ? val : "";
+        def.options.forEach(function (opt) {
+          fsItems.push({ value: opt, label: opt });
+        });
+        var pick = val && def.options.indexOf(val) >= 0 ? val : "";
+        flickSelectPopulate(fsRoot, fsItems, pick);
+        ctrl = fsRoot;
       } else {
         ctrl = document.createElement("input");
         ctrl.type = "text";
         ctrl.autocomplete = "off";
         ctrl.value = val;
+        ctrl.dataset.fieldKey = def.key;
+        ctrl.dataset.fieldRequired = def.required ? "1" : "0";
       }
-      ctrl.dataset.fieldKey = def.key;
-      ctrl.dataset.fieldRequired = def.required ? "1" : "0";
       lab.appendChild(ctrl);
       wrap.appendChild(lab);
     });
@@ -1033,13 +1835,15 @@
     t.className = s.descriptionRequired
       ? "field-tag field-tag-required"
       : "field-tag field-tag-optional";
-    t.textContent = s.descriptionRequired ? "Required" : "Optional";
+    t.textContent = s.descriptionRequired
+      ? tr("field.required")
+      : tr("field.optional");
     el.appendChild(t);
     el.appendChild(
       document.createTextNode(
         s.descriptionRequired
-          ? " — general description for city staff."
-          : " — add details if helpful."
+          ? " — " + tr("modal.desc_staff_hint")
+          : " — " + tr("modal.desc_optional_hint")
       )
     );
   }
@@ -1055,11 +1859,11 @@
     var schema = getSchemaForCategory(category);
     var loc = $("field-location").value.trim();
     if (!loc) {
-      return "Address (Location) is required.";
+      return tr("val.location");
     }
     var desc = $("field-description").value.trim();
     if (schema.descriptionRequired && !desc) {
-      return "Description is required for this request type.";
+      return tr("val.description");
     }
     var missingLabel = "";
     $("field-dynamic")
@@ -1076,7 +1880,7 @@
         }
       });
     if (missingLabel) {
-      return "Please fill required field: " + missingLabel + ".";
+      return tr("val.field", { field: missingLabel });
     }
     return null;
   }
@@ -1109,13 +1913,13 @@
         inner.className = "slot-inner";
         var img = document.createElement("img");
         img.src = state.slots[i];
-        img.alt = "Photo " + (i + 1);
+        img.alt = tr("slot.photo", { n: String(i + 1) });
         inner.appendChild(img);
         if (!state.aiMediaLocked) {
           var rm = document.createElement("button");
           rm.type = "button";
           rm.className = "slot-remove";
-          rm.setAttribute("aria-label", "Remove photo");
+          rm.setAttribute("aria-label", tr("slot.remove_aria"));
           rm.textContent = "×";
           (function (slotIndex) {
             rm.addEventListener("click", function (ev) {
@@ -1144,7 +1948,7 @@
   function addImageToSlot(dataUrl) {
     var idx = firstEmptySlot();
     if (idx < 0) {
-      showToast("All 5 photo slots are full.");
+      showToast(tr("toast.slots_full"));
       return false;
     }
     state.slots[idx] = dataUrl;
@@ -1452,10 +2256,16 @@
     var isSubmittedEdit = existing && concernIsSubmitted(existing);
     var canSubmitAction =
       opts.manualFallback === true || opts.worthSubmitting !== false;
+    state.reportModalCancelIsClose = !(
+      canSubmitAction || opts.manualFallback
+    );
     $("btn-report-save").hidden = false;
     $("btn-report-submit").hidden = !canSubmitAction || isSubmittedEdit;
-    $("btn-report-cancel").textContent =
-      canSubmitAction || opts.manualFallback ? "Cancel" : "Close";
+    $("btn-report-save").textContent = tr("modal.save");
+    $("btn-report-submit").textContent = tr("modal.submit");
+    $("btn-report-cancel").textContent = tr(
+      state.reportModalCancelIsClose ? "modal.close" : "modal.cancel"
+    );
 
     if (opts.manualFallback) {
       triage.hidden = true;
@@ -1466,12 +2276,12 @@
         triage.className = "ai-triage recommend-no";
         triageText.textContent = advice
           ? advice
-          : "This doesn’t look like a typical 311 issue. Submission is disabled for this draft.";
+          : tr("modal.triage_no");
       } else {
         triage.className = "ai-triage recommend-yes";
         triageText.textContent = advice
-          ? "Worth submitting: " + advice
-          : "This looks like something Philadelphia 311 can act on. Double-check the details, then submit if it’s accurate.";
+          ? tr("modal.triage_prefix") + advice
+          : tr("modal.triage_yes");
       }
     }
 
@@ -1481,10 +2291,11 @@
   function closeReportModal() {
     state.currentDraftId = null;
     state.uncommittedAiDraft = null;
+    state.reportModalCancelIsClose = false;
     $("modal-report").hidden = true;
     $("btn-report-submit").hidden = false;
     $("btn-report-save").hidden = false;
-    $("btn-report-cancel").textContent = "Cancel";
+    $("btn-report-cancel").textContent = tr("modal.cancel");
   }
 
   function geminiCategoryFieldsAppendix(hasVoice) {
@@ -1535,6 +2346,7 @@
       : "Use every image and the full voice audio if provided (voice may describe the issue when photos are missing or unclear).\n";
     return (
       "You classify Philadelphia 311-style civic issues from the user’s photos, optional voice note, and location hint.\n" +
+      "OUTPUT LANGUAGE: The app UI may be in English, Spanish, French, Japanese, Chinese (Simplified), Hindi, Arabic, Bengali, or other languages, and the resident may speak any language in a voice note—but you MUST write every JSON string value in English for Philadelphia 311: `description`, `location`, `submission_advice`, and every string inside `fields` must be English (use exact English catalog option text for dropdown values). The `category` value must remain one of the English slugs listed below.\n" +
       mediaInstructions +
       "Also judge whether this is worth submitting to the city at all.\n" +
       "SELF-SERVICE / DIY: If the photos (or voice) show something the resident can reasonably handle without 311—bagging leaves or yard waste on their own lot, moving their own belongings from a stoop or sidewalk edge, taking out trash they control, small private-property upkeep, a spill or mess they could clean, routine indoor issues, or anything that is clearly a personal or household task rather than city infrastructure—set `worth_submitting` to false unless there is also a separate, clear public-right-of-way or city-service issue. When you set it false for that reason, `submission_advice` must briefly suggest they can likely take care of it themselves (one concrete tip), not only say “don’t submit.”\n" +
@@ -1994,11 +2806,11 @@
     } else if (id) {
       var existing = getRequestById(id);
       if (!existing) {
-        showToast("Concern not found.");
+        showToast(tr("toast.concern_not_found"));
         return;
       }
       if (!concernIsUserEditable(existing)) {
-        showToast("This report is completed — it can’t be edited.");
+        showToast(tr("toast.completed_no_edit"));
         return;
       }
       editedExistingRequestId = id;
@@ -2106,11 +2918,11 @@
     showToast(
       mode === "submitted"
         ? demo311Ready
-          ? "Sent to 311 — pending until the city processes it."
-          : "Sent on this device. Set FLICK_311_DEMO_URL in .env and restart Expo to sync the demo dashboard."
+          ? tr("toast.submitted_demo")
+          : tr("toast.submitted_local")
         : saveSynced311
-        ? "Saved. Demo dashboard updated."
-        : "Concern saved on this device."
+        ? tr("toast.saved_demo")
+        : tr("toast.saved")
     );
     renderHomeList();
     if (state.map) refreshMap();
@@ -2131,7 +2943,7 @@
     if (r.worthSubmitting === false) {
       var note = document.createElement("span");
       note.className = "detail-worth-note";
-      note.textContent = " · AI: low priority for 311";
+      note.textContent = tr("detail.ai_low");
       line.appendChild(note);
     }
 
@@ -2140,13 +2952,13 @@
     (r.images || []).forEach(function (url) {
       var img = document.createElement("img");
       img.src = url;
-      img.alt = "Report photo";
+      img.alt = tr("detail.photo_alt");
       imgWrap.appendChild(img);
     });
     if (!(r.images && r.images.length)) {
       var empty = document.createElement("p");
       empty.className = "detail-empty-images";
-      empty.textContent = "No photos attached.";
+      empty.textContent = tr("detail.no_photos");
       imgWrap.appendChild(empty);
     }
 
@@ -2157,15 +2969,26 @@
       vw.innerHTML = "";
       if (r.voiceNote && String(r.voiceNote).indexOf("data:") === 0) {
         vw.hidden = false;
+        var wrap = document.createElement("div");
+        wrap.className = "voice-playback-wrap voice-playback-wrap--detail";
+        var chrome = document.createElement("div");
+        chrome.className = "voice-playback-chrome";
+        var lab = document.createElement("span");
+        lab.className = "voice-playback-label";
+        lab.textContent = tr("voice.playback_heading");
         var aud = document.createElement("audio");
         aud.controls = true;
-        aud.className = "detail-audio";
+        aud.setAttribute("controlsList", "nodownload");
+        aud.className = "detail-audio voice-playback";
         setVoiceAudioElementSrc(aud, r.voiceNote);
-        aud.setAttribute("aria-label", "Voice note");
+        aud.setAttribute("aria-label", tr("detail.voice_aria"));
         aud.addEventListener("play", function () {
           requestNativeSpeakerForVoicePlayback();
         });
-        vw.appendChild(aud);
+        chrome.appendChild(lab);
+        chrome.appendChild(aud);
+        wrap.appendChild(chrome);
+        vw.appendChild(wrap);
       } else {
         vw.hidden = true;
       }
@@ -2185,9 +3008,9 @@
       p.appendChild(t);
       body.appendChild(p);
     }
-    addRow("Category", categoryLabel(r.category));
-    addRow("Description", r.description);
-    addRow("Location", r.location);
+    addRow(tr("detail.row_category"), categoryLabel(r.category));
+    addRow(tr("detail.row_description"), r.description);
+    addRow(tr("detail.row_location"), r.location);
     if (r.fields && typeof r.fields === "object") {
       Object.keys(r.fields).forEach(function (k) {
         if (
@@ -2204,7 +3027,7 @@
       });
     }
     if ((r.submissionAdvice || "").trim()) {
-      addRow("AI note", r.submissionAdvice);
+      addRow(tr("detail.row_ai_note"), r.submissionAdvice);
     }
 
     $("btn-detail-submit").hidden = !(
@@ -2233,9 +3056,7 @@
     var demo311Ready = !!get311DemoUrl();
     if (posted && demo311Ready) pushConcernTo311Demo(posted);
     showToast(
-      demo311Ready
-        ? "Sent to 311 — pending until the city processes it."
-        : "Sent on this device. Set FLICK_311_DEMO_URL in .env and restart Expo to sync the demo dashboard."
+      demo311Ready ? tr("toast.submitted_demo") : tr("toast.submitted_local")
     );
     closeConcernDetail();
     renderHomeList();
@@ -2246,9 +3067,9 @@
     var id = state.detailConcernId;
     if (!id) return;
     showAppConfirm({
-      title: "Delete",
-      message: "Delete this concern? This cannot be undone.",
-      confirmLabel: "Delete",
+      title: tr("confirm.delete_title"),
+      message: tr("confirm.delete_message"),
+      confirmLabel: tr("confirm.delete"),
       danger: true,
       onConfirm: function () {
         var next = loadRequests().filter(function (r) {
@@ -2256,7 +3077,7 @@
         });
         saveRequests(next);
         deleteConcernOn311Demo(id);
-        showToast("Concern deleted.");
+        showToast(tr("toast.deleted"));
         closeConcernDetail();
         renderHomeList();
         if (state.map) refreshMap();
@@ -2270,7 +3091,7 @@
     var r = getRequestById(id);
     if (!r) return;
     if (!concernIsUserEditable(r)) {
-      showToast("This report is completed — it can’t be edited.");
+      showToast(tr("toast.completed_no_edit"));
       return;
     }
     closeConcernDetail();
@@ -2331,7 +3152,7 @@
       } else {
         var ph = document.createElement("div");
         ph.className = "request-thumb placeholder";
-        ph.textContent = "No image";
+        ph.textContent = tr("home.no_image");
         li.appendChild(ph);
       }
       var body = document.createElement("div");
@@ -2342,7 +3163,9 @@
       var meta = document.createElement("p");
       meta.className = "request-meta";
       meta.textContent =
-        (r.location || "No location") + " · " + formatTime(r.timestamp);
+        (r.location || tr("home.no_location")) +
+        " · " +
+        formatTime(r.timestamp);
       var pill = document.createElement("span");
       pill.className = "status-pill " + concernStatusPillClass(r);
       pill.textContent = concernStatusLabel(r);
@@ -2352,7 +3175,7 @@
       if (r.worthSubmitting === false) {
         var flag = document.createElement("span");
         flag.className = "ai-flag";
-        flag.textContent = "AI: low priority";
+        flag.textContent = tr("home.ai_low_flag");
         body.appendChild(flag);
       }
       li.appendChild(body);
@@ -2369,6 +3192,11 @@
         !isNaN(r.lng)
       );
     });
+    if (thresholdDeg <= 0) {
+      return withCoords.map(function (r) {
+        return { lat: r.lat, lng: r.lng, items: [r] };
+      });
+    }
     var clusters = [];
     withCoords.forEach(function (r) {
       var found = null;
@@ -2402,11 +3230,347 @@
     return clusters;
   }
 
-  /** ~City of Philadelphia + immediate border; pan/zoom cannot leave this box. */
-  var PHILLY_MAP_BOUNDS = L.latLngBounds(
-    [39.86, -75.32],
-    [40.14, -74.92]
-  );
+  /** Larger when zoomed out → bigger clusters; 0 at high zoom → points separate. */
+  function mapClusterThresholdDeg(zoom) {
+    if (zoom >= 16) return 0;
+    if (zoom <= 10) return 0.028;
+    if (zoom <= 11) return 0.02;
+    if (zoom <= 12) return 0.014;
+    if (zoom <= 13) return 0.009;
+    if (zoom <= 14) return 0.006;
+    if (zoom <= 15) return 0.0035;
+    return 0.0018;
+  }
+
+  function mapUserClusterKind(items) {
+    var allDone =
+      items.length > 0 &&
+      items.every(function (it) {
+        return it.status === "completed";
+      });
+    var allOpen =
+      items.length > 0 &&
+      items.every(function (it) {
+        return it.status !== "completed";
+      });
+    if (allDone) return "user-done";
+    if (allOpen) return "user-pending";
+    return "user-mix";
+  }
+
+  function mapCityClusterKind(items) {
+    var allClosed =
+      items.length > 0 &&
+      items.every(function (it) {
+        return it.completed;
+      });
+    var allOpen =
+      items.length > 0 &&
+      items.every(function (it) {
+        return !it.completed;
+      });
+    if (allClosed) return "city-closed";
+    if (allOpen) return "city-open";
+    return "city-mix";
+  }
+
+  function mapClusterCountDivIcon(n, kindClass) {
+    var count = n > 999 ? "999+" : String(n);
+    return L.divIcon({
+      className: "map-cluster-root",
+      html:
+        '<div class="map-cluster-bubble ' +
+        kindClass +
+        '"><span class="map-cluster-count">' +
+        count +
+        "</span></div>",
+      iconSize: [48, 48],
+      iconAnchor: [24, 24],
+    });
+  }
+
+  function getExpandedMapBounds() {
+    if (!state.map) return null;
+    try {
+      var b = state.map.getBounds();
+      if (!b || !b.isValid()) return null;
+      var h = b.getNorth() - b.getSouth();
+      var w = b.getEast() - b.getWest();
+      var latPad = Math.max(h * 0.12, 0.015);
+      var lngPad = Math.max(w * 0.12, 0.015);
+      return L.latLngBounds(
+        [b.getSouth() - latPad, b.getWest() - lngPad],
+        [b.getNorth() + latPad, b.getEast() + lngPad]
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function filterMapItemsByBounds(items, bounds) {
+    if (!bounds || !items || !items.length) return items || [];
+    var out = [];
+    var i;
+    var it;
+    for (i = 0; i < items.length; i++) {
+      it = items[i];
+      if (
+        typeof it.lat === "number" &&
+        typeof it.lng === "number" &&
+        !isNaN(it.lat) &&
+        !isNaN(it.lng) &&
+        bounds.contains(L.latLng(it.lat, it.lng))
+      ) {
+        out.push(it);
+      }
+    }
+    return out;
+  }
+
+  /** True while a popup is open (avoids redraw on autoPan moveend killing the popup). */
+  function mapPopupIsOpen() {
+    if (!state.map) return false;
+    var p = state.map._popup;
+    return !!(p && typeof p.isOpen === "function" && p.isOpen());
+  }
+
+  function scheduleDrawMapFromCacheDebounced(ev) {
+    if (!state.map) return;
+    if (ev && ev.type === "moveend" && mapPopupIsOpen()) {
+      return;
+    }
+    if (state.mapRedrawTimer) clearTimeout(state.mapRedrawTimer);
+    state.mapRedrawTimer = setTimeout(function () {
+      state.mapRedrawTimer = null;
+      if (mapPopupIsOpen()) {
+        return;
+      }
+      drawMapFromCache({ skipOrient: true });
+    }, 120);
+  }
+
+  function bindMapZoomRecluster() {
+    if (!state.map || state.mapZoomListenerBound) return;
+    state.mapZoomListenerBound = true;
+    state.map.on("zoomend", scheduleDrawMapFromCacheDebounced);
+    state.map.on("moveend", scheduleDrawMapFromCacheDebounced);
+  }
+
+  function zoomMapToClusterExtent(items) {
+    if (!state.map || !items || !items.length) return;
+    var pts = [];
+    items.forEach(function (it) {
+      if (
+        typeof it.lat === "number" &&
+        typeof it.lng === "number" &&
+        !isNaN(it.lat) &&
+        !isNaN(it.lng)
+      ) {
+        pts.push([it.lat, it.lng]);
+      }
+    });
+    if (!pts.length) return;
+    var maxZ = state.map.getMaxZoom();
+    if (pts.length === 1) {
+      var z1 = Math.min(state.map.getZoom() + 2, maxZ);
+      if (typeof state.map.flyTo === "function") {
+        state.map.flyTo(pts[0], z1, { duration: 0.4 });
+      } else {
+        state.map.setView(pts[0], z1);
+      }
+      return;
+    }
+    var lats = pts.map(function (p) {
+      return p[0];
+    });
+    var lngs = pts.map(function (p) {
+      return p[1];
+    });
+    var swLat = Math.min.apply(null, lats);
+    var neLat = Math.max.apply(null, lats);
+    var swLng = Math.min.apply(null, lngs);
+    var neLng = Math.max.apply(null, lngs);
+    if (swLat === neLat && swLng === neLng) {
+      var z2 = Math.min(state.map.getZoom() + 2, maxZ);
+      if (typeof state.map.flyTo === "function") {
+        state.map.flyTo([swLat, swLng], z2, { duration: 0.4 });
+      } else {
+        state.map.setView([swLat, swLng], z2);
+      }
+      return;
+    }
+    var bounds = L.latLngBounds([swLat, swLng], [neLat, neLng]);
+    var fitOpts = { padding: [40, 40], maxZoom: Math.min(18, maxZ) };
+    if (typeof state.map.flyToBounds === "function") {
+      state.map.flyToBounds(bounds, {
+        padding: fitOpts.padding,
+        maxZoom: fitOpts.maxZoom,
+        duration: 0.45,
+      });
+    } else {
+      state.map.fitBounds(bounds, fitOpts);
+    }
+  }
+
+  /**
+   * Redraw user + city layers using cached items and current zoom threshold.
+   * @param {{ skipOrient?: boolean }} opts
+   */
+  function drawMapFromCache(opts) {
+    opts = opts || {};
+    if (!state.map || !state.userLayer || !state.otherLayer) return;
+    bindMapZoomRecluster();
+    var zoom = state.map.getZoom();
+    var t = mapClusterThresholdDeg(zoom);
+    var userFull = state.mapCachedUserItems || [];
+    var otherFull = state.mapCachedOtherItems || [];
+    var userItems = userFull;
+    var otherItems = otherFull;
+    if (opts.skipOrient) {
+      var extBounds = getExpandedMapBounds();
+      userItems = filterMapItemsByBounds(userFull, extBounds);
+      otherItems = filterMapItemsByBounds(otherFull, extBounds);
+    }
+
+    state.userLayer.clearLayers();
+    state.otherLayer.clearLayers();
+
+    var userBoundsPts = [];
+    var uClusters = clusterPoints(userItems, t);
+    uClusters.forEach(function (c) {
+      userBoundsPts.push([c.lat, c.lng]);
+      var n = c.items.length;
+      var isMulti = n > 1;
+      var allCompleted =
+        n > 0 &&
+        c.items.every(function (it) {
+          return it.status === "completed";
+        });
+      var stroke;
+      var fill;
+      if (allCompleted) {
+        stroke = "#2d6b44";
+        fill = isMulti ? "#3d8f5a" : "#5cb87a";
+      } else {
+        stroke = "#b8860b";
+        fill = isMulti ? "#daa520" : "#f4d03f";
+      }
+      if (isMulti) {
+        var m = L.marker([c.lat, c.lng], {
+          icon: mapClusterCountDivIcon(n, mapUserClusterKind(c.items)),
+        });
+        m.on("click", function (ev) {
+          L.DomEvent.stopPropagation(ev);
+          zoomMapToClusterExtent(c.items);
+        });
+        m.addTo(state.userLayer);
+      } else {
+        var it = c.items[0];
+        var popupHtml =
+          "<span class=\"map-popup-id map-popup-id-block\">ID: " +
+          escapeForPopup(it.id != null && it.id !== "" ? String(it.id) : "—") +
+          "</span><br/><strong>" +
+          categoryLabel(it.category) +
+          "</strong> · " +
+          concernStatusLabel(it).toLowerCase() +
+          "<br/>" +
+          (it.location || "") +
+          "<br/><span style='color:#8fa3bf'>" +
+          formatTime(it.timestamp) +
+          "</span>";
+        var marker = L.circleMarker([c.lat, c.lng], {
+          radius: 11,
+          color: stroke,
+          fillColor: fill,
+          fillOpacity: 0.9,
+          weight: 2.5,
+        });
+        marker.bindPopup(popupHtml, { autoPanPadding: [20, 20] });
+        marker.addTo(state.userLayer);
+      }
+    });
+
+    var otherPts = [];
+    var oClusters = clusterPoints(otherItems, t);
+    oClusters.forEach(function (c) {
+      otherPts.push([c.lat, c.lng]);
+      var n = c.items.length;
+      var isMulti = n > 1;
+      var allDone =
+        n > 0 &&
+        c.items.every(function (it) {
+          return it.completed;
+        });
+      var ost;
+      var ofill;
+      if (allDone) {
+        ost = "#1565c0";
+        ofill = isMulti ? "#1976d2" : "#1e88e5";
+      } else {
+        ost = "#b71c1c";
+        ofill = isMulti ? "#c62828" : "#e53935";
+      }
+      if (isMulti) {
+        var om = L.marker([c.lat, c.lng], {
+          icon: mapClusterCountDivIcon(n, mapCityClusterKind(c.items)),
+        });
+        om.on("click", function (ev) {
+          L.DomEvent.stopPropagation(ev);
+          zoomMapToClusterExtent(c.items);
+        });
+        om.addTo(state.otherLayer);
+      } else {
+        var oi = c.items[0];
+        var phtml =
+          "<span class=\"map-popup-id map-popup-id-block\">311 ID: " +
+          escapeForPopup(
+            oi.requestId != null && oi.requestId !== ""
+              ? String(oi.requestId)
+              : "—"
+          ) +
+          "</span><br/><strong>Philly 311 (open data)</strong><br/>" +
+          escapeForPopup(oi.category) +
+          " · " +
+          escapeForPopup(oi.statusLabel || (oi.completed ? "Closed" : "Open")) +
+          "<br/>" +
+          escapeForPopup(oi.location || "") +
+          "<br/><span style='color:#8fa3bf'>" +
+          formatTime(oi.ts) +
+          "</span>";
+        var omarker = L.circleMarker([c.lat, c.lng], {
+          radius: 9,
+          color: ost,
+          fillColor: ofill,
+          fillOpacity: 0.9,
+          weight: 2,
+        });
+        omarker.bindPopup(phtml, { autoPanPadding: [20, 20] });
+        omarker.addTo(state.otherLayer);
+      }
+    });
+
+    if (!opts.skipOrient) {
+      var combined = userBoundsPts.concat(otherPts);
+      orientMapToUserOrFitLocal(
+        combined.length ? combined : userBoundsPts
+      );
+    }
+  }
+
+  /** Reports older than this are hidden on the map (~30 days). */
+  var MAP_LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
+
+  /** City 311 open data (OpenDataPhilly / CARTO SQL API). */
+  var PHILLY_311_CARTO_SQL = "https://phl.carto.com/api/v2/sql";
+  var PHILLY_311_MAP_ROW_LIMIT = 5000;
+
+  function escapeForPopup(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
 
   /**
    * City limits GeoJSON (EPSG:4326) is injected as window.__FLICK_PHILLY_LIMITS__
@@ -2460,11 +3624,10 @@
   function initMapIfNeeded() {
     if (state.map || typeof L === "undefined") return;
     state.map = L.map("map", {
-      zoomControl: true,
+      zoomControl: false,
       attributionControl: true,
-      maxBounds: PHILLY_MAP_BOUNDS,
-      maxBoundsViscosity: 1,
-      minZoom: 10,
+      preferCanvas: true,
+      minZoom: 3,
       maxZoom: 19,
     });
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -2472,17 +3635,9 @@
       attribution: "&copy; OpenStreetMap",
     }).addTo(state.map);
     addPhillyMapBackdrop();
+    state.otherLayer = L.layerGroup().addTo(state.map);
     state.userLayer = L.layerGroup().addTo(state.map);
     state.map.setView([39.9526, -75.1652], 12);
-  }
-
-  function clampLatLngToPhilly(lat, lng) {
-    var sw = PHILLY_MAP_BOUNDS.getSouthWest();
-    var ne = PHILLY_MAP_BOUNDS.getNorthEast();
-    return [
-      Math.min(ne.lat, Math.max(sw.lat, lat)),
-      Math.min(ne.lng, Math.max(sw.lng, lng)),
-    ];
   }
 
   function fitMapBoundsLocal(userPts) {
@@ -2492,8 +3647,7 @@
       return;
     }
     if (all.length === 1) {
-      var c = clampLatLngToPhilly(all[0][0], all[0][1]);
-      state.map.setView(c, 14);
+      state.map.setView([all[0][0], all[0][1]], 14);
       return;
     }
     state.map.fitBounds(all, { padding: [28, 28], maxZoom: 14 });
@@ -2524,7 +3678,7 @@
           accuracy: pos.coords.accuracy,
         };
         if (keepLabel) state.lastPosition.label = keepLabel;
-        var center = clampLatLngToPhilly(la, lo);
+        var center = [la, lo];
         if (typeof state.map.flyTo === "function") {
           state.map.flyTo(center, 15, { duration: 0.45 });
         } else {
@@ -2538,9 +3692,145 @@
     );
   }
 
+  function goMapToMyLocation() {
+    initMapIfNeeded();
+    if (!state.map) return;
+    if (!state.settings.locationEnabled) {
+      showToast(tr("toast.loc_settings"));
+      return;
+    }
+    if (!navigator.geolocation) {
+      showToast(tr("toast.loc_unavail"));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      function (pos) {
+        var la = pos.coords.latitude;
+        var lo = pos.coords.longitude;
+        if (la == null || lo == null || isNaN(la) || isNaN(lo)) {
+          showToast(tr("toast.loc_read"));
+          return;
+        }
+        var keepLabel =
+          state.lastPosition &&
+          typeof state.lastPosition.label === "string" &&
+          state.lastPosition.label.trim()
+            ? state.lastPosition.label
+            : "";
+        state.lastPosition = {
+          lat: la,
+          lng: lo,
+          accuracy: pos.coords.accuracy,
+        };
+        if (keepLabel) state.lastPosition.label = keepLabel;
+        var z = Math.max(state.map.getZoom(), 15);
+        if (typeof state.map.flyTo === "function") {
+          state.map.flyTo([la, lo], z, { duration: 0.5 });
+        } else {
+          state.map.setView([la, lo], z);
+        }
+      },
+      function () {
+        showToast(tr("toast.loc_perm"));
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+    );
+  }
+
+  function buildMapCategoryFilterOptions() {
+    var root = $("map-filter-category-root");
+    if (!root) return;
+    var keep = state.mapCategorySlug || "";
+    var items = [{ value: "", label: tr("map.all_types") }];
+    flickCategoriesList().forEach(function (c) {
+      items.push({ value: c.value, label: categoryLabel(c.value) });
+    });
+    flickSelectPopulate(root, items, keep);
+    var hidden = $("map-filter-category");
+    if (hidden) state.mapCategorySlug = hidden.value || "";
+  }
+
+  function userReportMatchesMapCategory(r, slug) {
+    if (!slug) return true;
+    var u = resolveCategoryFromAi(r.category || "other");
+    var want = normalizeCategorySlug(slug);
+    return normalizeCategorySlug(u) === want || u === slug;
+  }
+
+  function cityRowMatchesMapCategory(row, slug) {
+    if (!slug) return true;
+    var label = categoryEnglishLabel(slug).toLowerCase();
+    var hay = (
+      String(row.service_name || "") +
+      " " +
+      String(row.subject || "")
+    ).toLowerCase();
+    if (label && hay.indexOf(label) >= 0) return true;
+    var spaced = String(slug).replace(/_/g, " ").toLowerCase();
+    if (spaced && hay.indexOf(spaced) >= 0) return true;
+    return false;
+  }
+
+  /** Philly 311 “information request” cases — hide from map (noise vs actionable issues). */
+  function cityRowIsInformationRequest311(row) {
+    if (!row) return false;
+    var hay = (
+      String(row.service_name || "") +
+      " " +
+      String(row.subject || "")
+    ).toLowerCase();
+    return hay.indexOf("information request") >= 0;
+  }
+
+  function updateMapSectionUi(yoursCount, cityCount) {
+    var loc = numberLocaleForUi();
+    var titleEl = $("map-section-title");
+    if (titleEl) {
+      titleEl.textContent = state.mapShowCity311
+        ? tr("home.map_title_all")
+        : tr("home.map_title_mine");
+    }
+    var countEl = $("map-dot-count");
+    if (countEl) {
+      var y = typeof yoursCount === "number" ? yoursCount : 0;
+      var c = typeof cityCount === "number" ? cityCount : 0;
+      var total = y + c;
+      if (!state.mapShowCity311) {
+        countEl.textContent =
+          y === 0
+            ? tr("map.count_none_yours")
+            : tr("map.count_yours", {
+                n: y.toLocaleString(loc),
+                s: y === 1 ? "" : "s",
+              });
+      } else if (total === 0) {
+        countEl.textContent = tr("map.count_none");
+      } else {
+        countEl.textContent = tr("map.count_mix", {
+          t: total.toLocaleString(loc),
+          y: y.toLocaleString(loc),
+          c: c.toLocaleString(loc),
+        });
+      }
+    }
+    var btnMine = $("map-view-mine");
+    var btnAll = $("map-view-all");
+    if (btnMine) btnMine.textContent = tr("map.mine");
+    if (btnAll) btnAll.textContent = tr("map.everyone");
+    if (btnMine && btnAll) {
+      btnMine.classList.toggle("map-toggle-btn-active", !state.mapShowCity311);
+      btnAll.classList.toggle("map-toggle-btn-active", state.mapShowCity311);
+    }
+  }
+
   function refreshMap() {
     initMapIfNeeded();
     if (!state.map) return;
+    if (!state.otherLayer) {
+      state.otherLayer = L.layerGroup().addTo(state.map);
+    }
+    var cutoff = Date.now() - MAP_LOOKBACK_MS;
+    var catSlug = state.mapCategorySlug || "";
     var requests = loadRequests();
     var withCoords = requests.filter(function (r) {
       return (
@@ -2548,70 +3838,84 @@
         typeof r.lat === "number" &&
         typeof r.lng === "number" &&
         !isNaN(r.lat) &&
-        !isNaN(r.lng)
+        !isNaN(r.lng) &&
+        (r.timestamp || 0) >= cutoff
       );
+    }).filter(function (r) {
+      return userReportMatchesMapCategory(r, catSlug);
     });
-    state.userLayer.clearLayers();
 
-    var userBoundsPts = [];
-    var clusters = clusterPoints(withCoords, 0.004);
-    clusters.forEach(function (c) {
-      userBoundsPts.push([c.lat, c.lng]);
-      var isMulti = c.items.length > 1;
-      var allCompleted =
-        c.items.length > 0 &&
-        c.items.every(function (it) {
-          return it.status === "completed";
+    state.mapCachedUserItems = withCoords;
+
+    if (!state.mapShowCity311) {
+      state.mapCachedOtherItems = [];
+      drawMapFromCache({});
+      updateMapSectionUi(withCoords.length, 0);
+      return;
+    }
+
+    state.mapCachedOtherItems = [];
+    drawMapFromCache({ skipOrient: true });
+
+    var sql =
+      "SELECT service_request_id, service_name, subject, status, address, requested_datetime, lat, lon " +
+      "FROM public_cases_fc " +
+      "WHERE requested_datetime >= NOW() - INTERVAL '30 days' " +
+      "AND lat IS NOT NULL AND lon IS NOT NULL " +
+      "AND NOT (LOWER(COALESCE(service_name::text, '')) LIKE '%information request%' " +
+      "OR LOWER(COALESCE(subject::text, '')) LIKE '%information request%') " +
+      "ORDER BY requested_datetime DESC " +
+      "LIMIT " +
+      PHILLY_311_MAP_ROW_LIMIT;
+
+    var cartoUrl =
+      PHILLY_311_CARTO_SQL + "?q=" + encodeURIComponent(sql) + "&format=json";
+
+    fetch(cartoUrl, { method: "GET", cache: "no-store" })
+      .then(function (res) {
+        if (!res.ok) throw new Error("bad");
+        return res.json();
+      })
+      .then(function (data) {
+        var rows = (data && data.rows) || [];
+        var otherItems = [];
+        rows.forEach(function (row) {
+          if (!row) return;
+          if (cityRowIsInformationRequest311(row)) return;
+          var lat = Number(row.lat);
+          var lon = Number(row.lon);
+          if (isNaN(lat) || isNaN(lon)) return;
+          var ts = row.requested_datetime
+            ? new Date(row.requested_datetime).getTime()
+            : 0;
+          if (ts < cutoff) return;
+          if (!cityRowMatchesMapCategory(row, catSlug)) return;
+          var st = (row.status && String(row.status)) || "";
+          var completed = st.toLowerCase() === "closed";
+          var cat = row.service_name || row.subject || "311 request";
+          otherItems.push({
+            lat: lat,
+            lng: lon,
+            category: cat,
+            location: row.address || "",
+            ts: ts,
+            completed: completed,
+            statusLabel: st,
+            requestId:
+              row.service_request_id != null && row.service_request_id !== ""
+                ? String(row.service_request_id)
+                : "",
+          });
         });
-      var stroke;
-      var fill;
-      if (allCompleted) {
-        stroke = "#2d6b44";
-        fill = isMulti ? "#3d8f5a" : "#5cb87a";
-      } else {
-        stroke = "#d4af37";
-        fill = isMulti ? "#9a7b2c" : "#d4af37";
-      }
-      var marker = L.circleMarker([c.lat, c.lng], {
-        radius: isMulti ? 18 : 14,
-        color: stroke,
-        fillColor: fill,
-        fillOpacity: 0.88,
-        weight: 3,
+        state.mapCachedOtherItems = otherItems;
+        drawMapFromCache({});
+        updateMapSectionUi(withCoords.length, otherItems.length);
+      })
+      .catch(function () {
+        state.mapCachedOtherItems = [];
+        drawMapFromCache({});
+        updateMapSectionUi(withCoords.length, 0);
       });
-      var popupHtml;
-      if (isMulti) {
-        popupHtml =
-          '<div class="cluster-popup"><strong>' +
-          c.items.length +
-          " reports to 311</strong><ul class=\"cluster-list\">";
-        c.items.forEach(function (it) {
-          popupHtml +=
-            "<li>" +
-            categoryLabel(it.category) +
-            " — " +
-            formatTime(it.timestamp) +
-            "</li>";
-        });
-        popupHtml += "</ul></div>";
-      } else {
-        var it = c.items[0];
-        popupHtml =
-          "<strong>" +
-          categoryLabel(it.category) +
-          "</strong> · " +
-          concernStatusLabel(it).toLowerCase() +
-          "<br/>" +
-          (it.location || "") +
-          "<br/><span style='color:#8fa3bf'>" +
-          formatTime(it.timestamp) +
-          "</span>";
-      }
-      marker.bindPopup(popupHtml, { autoPanPadding: [20, 20] });
-      marker.addTo(state.userLayer);
-    });
-
-    orientMapToUserOrFitLocal(userBoundsPts);
   }
 
   var MAIN_NAV_ORDER = ["home", "camera", "settings"];
@@ -2661,6 +3965,9 @@
         if (state.map) state.map.invalidateSize();
         sync311DemoFromServer();
       }, 280);
+    }
+    if (name === "settings") {
+      syncLanguageSettingFlickSelect();
     }
   }
 
@@ -2784,10 +4091,10 @@
 
   function showAppConfirm(opts) {
     opts = opts || {};
-    $("app-confirm-title").textContent = opts.title || "Confirm";
+    $("app-confirm-title").textContent = opts.title || tr("confirm.default");
     $("app-confirm-message").textContent = opts.message || "";
     var okBtn = $("btn-app-confirm-ok");
-    okBtn.textContent = opts.confirmLabel || "OK";
+    okBtn.textContent = opts.confirmLabel || tr("app.ok");
     okBtn.classList.remove("primary", "danger");
     if (opts.danger) {
       okBtn.classList.add("danger");
@@ -2900,7 +4207,7 @@
     }
     var dataUrl = captureFrameDataUrl();
     if (!dataUrl) {
-      showToast("Camera not ready. Check permissions or use Gallery.");
+      showToast(tr("toast.camera_not_ready"));
       startCamera();
       return;
     }
@@ -2923,13 +4230,13 @@
     if (!files || !files.length) return;
     var remaining = 5 - state.slots.filter(Boolean).length;
     if (remaining <= 0) {
-      showToast("All 5 photo slots are full.");
+      showToast(tr("toast.slots_full"));
       e.target.value = "";
       return;
     }
     var toRead = Math.min(files.length, remaining);
     if (toRead < files.length) {
-      showToast("Only " + remaining + " empty slot(s); extra files skipped.");
+      showToast(tr("toast.slots_partial", { n: String(remaining) }));
     }
     var i = 0;
     function next() {
@@ -2965,11 +4272,11 @@
     var imgs = state.slots.filter(Boolean);
     var voice = state.voiceNote;
     if (!imgs.length && !voice) {
-      showToast("Add at least one photo or a voice note to generate a report.");
+      showToast(tr("toast.need_media"));
       return;
     }
     setAiMediaLocked(true);
-    showToast("Analyzing with AI…", { persistent: true, loading: true });
+    showToast(tr("toast.analyzing"), { persistent: true, loading: true });
     function runAiAfterLocation() {
       callGemini(imgs, voice)
         .then(function (ai) {
@@ -3122,16 +4429,26 @@
     updateVoiceUi();
   });
 
+  var setUiLang = $("set-ui-language");
+  if (setUiLang) {
+    setUiLang.addEventListener("change", function () {
+      var v = normalizeUiLanguage(setUiLang.value);
+      state.settings.uiLanguage = v;
+      saveSettings(state.settings);
+      applyUiLanguage();
+    });
+  }
+
   $("btn-open-app-settings").addEventListener("click", function () {
     postNative({ type: "OPEN_APP_SETTINGS" });
-    showToast("Opening system settings…");
+    showToast(tr("toast.app_settings"));
   });
 
   $("btn-clear-data").addEventListener("click", function () {
     showAppConfirm({
-      title: "Clear all data",
-      message: "Delete all saved reports and settings on this device?",
-      confirmLabel: "Delete all",
+      title: tr("confirm.clear_title"),
+      message: tr("confirm.clear_message"),
+      confirmLabel: tr("confirm.delete_all"),
       danger: true,
       onConfirm: function () {
         localStorage.removeItem(STORAGE_REQUESTS);
@@ -3142,10 +4459,12 @@
           locationEnabled: true,
           cameraEnabled: true,
           microphoneEnabled: true,
+          uiLanguage: "en",
         };
         saveSettings(state.settings);
         syncSettingsUI();
         applyTheme();
+        applyUiLanguage();
         state.slots = [null, null, null, null, null];
         state.voiceNote = null;
         state.voiceRecording = false;
@@ -3153,7 +4472,7 @@
         setAiMediaLocked(false);
         renderHomeList();
         if (state.map) refreshMap();
-        showToast("Local data cleared.");
+        showToast(tr("toast.data_cleared"));
       },
     });
   });
@@ -3168,7 +4487,7 @@
       return;
     }
     if (!state.settings.microphoneEnabled) {
-      showToast("Turn on the microphone in Settings to record.");
+      showToast(tr("toast.mic_settings"));
       return;
     }
     if (useNativeVoiceBridge()) {
@@ -3192,6 +4511,34 @@
 
   applyTheme();
   syncSettingsUI();
+  applyUiLanguage();
+  var mapViewMine = $("map-view-mine");
+  var mapViewAll = $("map-view-all");
+  var mapFilterCat = $("map-filter-category");
+  if (mapViewMine) {
+    mapViewMine.addEventListener("click", function () {
+      state.mapShowCity311 = false;
+      refreshMap();
+    });
+  }
+  if (mapViewAll) {
+    mapViewAll.addEventListener("click", function () {
+      state.mapShowCity311 = true;
+      refreshMap();
+    });
+  }
+  if (mapFilterCat) {
+    mapFilterCat.addEventListener("change", function () {
+      state.mapCategorySlug = mapFilterCat.value || "";
+      refreshMap();
+    });
+  }
+  var mapLocateMe = $("map-locate-me");
+  if (mapLocateMe) {
+    mapLocateMe.addEventListener("click", function () {
+      goMapToMyLocation();
+    });
+  }
   start311DemoPoll();
   sync311DemoFromServer();
   renderSlots();

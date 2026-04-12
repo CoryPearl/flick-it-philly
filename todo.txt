@@ -2,3 +2,9 @@
 
 npm run 311-demo - run demo server
 npm start - run app
+
+change lightmode from grey to white in some areas
+
+Backup api keys:
+- AIzaSyAza3vxF-3A5b8pcdqzBcfxCW4X24JasOY 
+- AIzaSyAc_4Z51046bF9oD9j3IVAuI2L72ZDCcyA

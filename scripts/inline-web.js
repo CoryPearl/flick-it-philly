@@ -13,12 +13,17 @@ const fieldSchemas = fs.readFileSync(path.join(pub, "fieldSchemas.js"), "utf8");
 const phillyLimitsPath = path.join(pub, "philly-city-limits.json");
 const phillyLimits = fs.readFileSync(phillyLimitsPath, "utf8");
 JSON.parse(phillyLimits);
+const localesBundlePath = path.join(pub, "locales-bundle.js");
+const localesBundle = fs.existsSync(localesBundlePath)
+  ? fs.readFileSync(localesBundlePath, "utf8") + "\n"
+  : "";
 const js =
   "window.__FLICK_PHILLY_LIMITS__=" +
   phillyLimits +
   ";\n" +
   fieldSchemas +
   "\n" +
+  localesBundle +
   fs.readFileSync(path.join(pub, "app.js"), "utf8");
 
 const bundled = html

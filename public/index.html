@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -19,69 +19,295 @@
     <div id="app">
       <main class="main">
         <div class="screen-stack">
-        <!-- Home -->
-        <section id="screen-home" class="screen screen-home" hidden>
-          <header class="screen-header home-header">
-            <h1>Flick It Philly</h1>
-          </header>
-          <div class="home-scroll">
-            <h2 class="home-section-title">Your reports</h2>
-            <ul id="request-list" class="request-list"></ul>
-            <p id="home-empty" class="empty-state" hidden>
-              No reports yet. Use the camera to add photos and/or a voice note,
-              then generate a report. Tap a saved concern for details or submit
-              later.
-            </p>
+          <!-- Home -->
+          <section id="screen-home" class="screen screen-home" hidden>
+            <header class="screen-header home-header">
+              <h1 data-i18n="home.title">Flick It Philly</h1>
+            </header>
+            <div class="home-scroll">
+              <h2 class="home-section-title" data-i18n="home.reports">
+                Your reports
+              </h2>
+              <ul id="request-list" class="request-list"></ul>
+              <p id="home-empty" class="empty-state" hidden data-i18n="home.empty">
+                No reports yet. Use the camera to add photos and/or a voice
+                note, then generate a report. Tap a saved concern for details or
+                submit later.
+              </p>
 
-            <h2 class="home-section-title home-section-spaced">Your reports to 311</h2>
-            <p class="home-section-sub">
-              Map shows concerns you’ve sent to 311 on this device (shown as
-              <strong>pending</strong> until processed). Only items with a saved
-              location appear here. Drafts you haven’t submitted stay off the map.
-            </p>
-            <div id="map" class="map map-home"></div>
-            <p class="map-legend">
-              Gold: pending · Green: completed (this device only)
-            </p>
-          </div>
-        </section>
+              <h2
+                id="map-section-title"
+                class="home-section-title home-section-spaced"
+              >
+                All reports to 311
+              </h2>
+              <div class="map-filters-wrap">
+                <div
+                  class="map-filters"
+                  data-i18n-aria="map.filters_aria"
+                  aria-label="Map filters"
+                >
+                  <div class="map-filter-block">
+                    <span
+                      class="map-filter-heading"
+                      id="map-view-label"
+                      data-i18n="map.view"
+                      >View</span
+                    >
+                    <div
+                      class="map-toggle"
+                      role="group"
+                      aria-labelledby="map-view-label"
+                    >
+                      <button
+                        type="button"
+                        id="map-view-mine"
+                        class="map-toggle-btn"
+                      >
+                        Mine only
+                      </button>
+                      <button
+                        type="button"
+                        id="map-view-all"
+                        class="map-toggle-btn map-toggle-btn-active"
+                      >
+                        Everyone
+                      </button>
+                    </div>
+                  </div>
+                  <div
+                    class="flick-select flick-select-map map-filter-block map-filter-block-select"
+                    id="map-filter-category-root"
+                  >
+                    <span
+                      class="map-filter-heading"
+                      id="map-cat-label"
+                      data-i18n="map.category"
+                      >Category</span
+                    >
+                    <input
+                      type="hidden"
+                      id="map-filter-category"
+                      value=""
+                      aria-hidden="true"
+                    />
+                    <button
+                      type="button"
+                      class="flick-select-trigger flick-select-trigger-map"
+                      id="map-filter-category-trigger"
+                      aria-haspopup="listbox"
+                      aria-expanded="false"
+                      aria-controls="map-filter-category-panel"
+                      aria-labelledby="map-cat-label"
+                    >
+                      <span
+                        class="flick-select-value"
+                        id="map-filter-category-label"
+                        >All types</span
+                      >
+                      <span class="flick-select-chevron" aria-hidden="true"></span>
+                    </button>
+                    <div
+                      class="flick-select-panel"
+                      id="map-filter-category-panel"
+                      role="listbox"
+                      hidden
+                    ></div>
+                  </div>
+                  <p
+                    class="map-dot-count"
+                    id="map-dot-count"
+                    aria-live="polite"
+                  ></p>
+                </div>
+              </div>
+              <div class="map-wrap map-wrap-home">
+                <div id="map" class="map map-home"></div>
+                <button
+                  type="button"
+                  id="map-locate-me"
+                  class="map-locate-btn"
+                  data-i18n-aria="map.locate_aria"
+                  aria-label="Go to my location"
+                >
+                  <svg
+                    class="map-locate-icon"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    width="22"
+                    height="22"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      fill="currentColor"
+                      d="M12 2.25c.41 0 .78.25.93.63l7.5 18a1 1 0 01-1.37 1.24L12 18.08l-7.06 4.04a1 1 0 01-1.37-1.24l7.5-18c.15-.38.52-.63.93-.63zm0 4.84L6.96 19.5l4.32-2.47a1 1 0 011.44 0l4.32 2.47L12 7.09z"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <div
+                class="map-key map-key-below-map"
+                data-i18n-aria="map.legend_region"
+                aria-label="Map legend"
+              >
+                <p class="map-key-title" data-i18n="map.legend_title">Key</p>
+                <ul class="map-key-list">
+                  <li>
+                    <span
+                      class="map-legend-circle map-legend-circle-user-pending"
+                      aria-hidden="true"
+                    ></span>
+                    <span data-i18n="map.legend_user_pending"
+                      >Your report — pending</span
+                    >
+                  </li>
+                  <li>
+                    <span
+                      class="map-legend-circle map-legend-circle-user-done"
+                      aria-hidden="true"
+                    ></span>
+                    <span data-i18n="map.legend_user_done"
+                      >Your report — completed</span
+                    >
+                  </li>
+                  <li>
+                    <span
+                      class="map-legend-circle map-legend-circle-city-open"
+                      aria-hidden="true"
+                    ></span>
+                    <span data-i18n="map.legend_city_open"
+                      >Philly 311 data — pending</span
+                    >
+                  </li>
+                  <li>
+                    <span
+                      class="map-legend-circle map-legend-circle-city-closed"
+                      aria-hidden="true"
+                    ></span>
+                    <span data-i18n="map.legend_city_closed"
+                      >Philly 311 data — completed</span
+                    >
+                  </li>
+                </ul>
+              </div>
+              <p
+                class="home-section-sub map-section-desc-below"
+                data-i18n="home.map_desc"
+              >
+                Map shows the <strong>last 30 days</strong> only. Your submitted
+                concerns are yellow (pending) or green (completed). With
+                <strong>Everyone</strong>, red and blue dots are real Philly 311
+                cases from open data (open / closed). Drafts stay off the map.
+              </p>
+            </div>
+          </section>
 
-        <!-- Camera -->
-        <section id="screen-camera" class="screen screen-camera">
-          <div
-            class="slots"
-            id="image-slots"
-            aria-label="Photo slots, remove with the X button"
-          ></div>
-          <div class="preview-wrap" id="camera-preview-wrap">
-            <video
-              id="camera-preview"
-              class="camera-preview"
-              playsinline
-              autoplay
-              muted
-              aria-label="Live camera feed"
-            ></video>
+          <!-- Camera -->
+          <section id="screen-camera" class="screen screen-camera">
             <div
-              id="camera-overlay"
-              class="camera-overlay is-live"
-              aria-live="polite"
-            >
-              <div class="camera-overlay-content">
-                <p id="camera-overlay-title" class="overlay-title">
-                  Add photos and/or a voice note, then Report
-                </p>
-                <p id="camera-overlay-hint" class="overlay-hint" hidden></p>
+              class="slots"
+              id="image-slots"
+              data-i18n-aria="cam.slots_aria"
+              aria-label="Photo slots, remove with the X button"
+            ></div>
+            <div class="preview-wrap" id="camera-preview-wrap">
+              <video
+                id="camera-preview"
+                class="camera-preview"
+                playsinline
+                autoplay
+                muted
+                data-i18n-aria="cam.preview_aria"
+                aria-label="Live camera feed"
+              ></video>
+              <div
+                id="camera-overlay"
+                class="camera-overlay is-live"
+                aria-live="polite"
+              >
+                <div class="camera-overlay-content">
+                  <p
+                    id="camera-overlay-title"
+                    class="overlay-title"
+                    data-i18n="cam.overlay"
+                  >
+                    Add photos and/or a voice note, then Report
+                  </p>
+                  <p id="camera-overlay-hint" class="overlay-hint" hidden></p>
+                </div>
               </div>
             </div>
-          </div>
-          <div class="voice-stack">
-            <div class="voice-row" id="voice-row">
+            <div class="voice-stack">
+              <div class="voice-row" id="voice-row">
+                <button
+                  type="button"
+                  id="btn-voice"
+                  class="ctrl-btn voice-btn"
+                  data-i18n-aria="voice.btn_aria"
+                  aria-label="Record or stop voice note"
+                >
+                  <span class="ctrl-btn-inner">
+                    <svg
+                      class="ctrl-btn-icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"
+                      />
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                      <line x1="12" y1="19" x2="12" y2="23" />
+                      <line x1="8" y1="23" x2="16" y2="23" />
+                    </svg>
+                    <span class="ctrl-btn-text">Audio</span>
+                  </span>
+                </button>
+                <span id="voice-status" class="voice-status" hidden></span>
+                <button
+                  type="button"
+                  id="btn-voice-clear"
+                  class="ctrl-btn voice-clear-btn"
+                  data-i18n="voice.clear"
+                  data-i18n-aria="voice.clear_aria"
+                  aria-label="Remove voice note"
+                  hidden
+                >
+                  Clear voice
+                </button>
+              </div>
+              <div class="voice-playback-wrap" id="voice-playback-wrap" hidden>
+                <div class="voice-playback-chrome">
+                  <span
+                    class="voice-playback-label"
+                    data-i18n="voice.playback_heading"
+                    >Voice note</span
+                  >
+                  <audio
+                    id="voice-note-playback"
+                    class="voice-playback"
+                    controls
+                    controlsList="nodownload"
+                    preload="metadata"
+                    hidden
+                    data-i18n-aria="voice.playback_aria"
+                    aria-label="Replay voice note"
+                  ></audio>
+                </div>
+              </div>
+            </div>
+            <div class="camera-controls">
               <button
                 type="button"
-                id="btn-voice"
-                class="ctrl-btn voice-btn"
-                aria-label="Record or stop voice note"
+                id="btn-gallery"
+                class="ctrl-btn ctrl-btn-with-text"
+                data-i18n-aria="cam.gallery_aria"
+                aria-label="Upload photos from your gallery"
               >
                 <span class="ctrl-btn-inner">
                   <svg
@@ -94,137 +320,148 @@
                     stroke-linejoin="round"
                     aria-hidden="true"
                   >
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                    <path d="M19.07 4.93a9 9 0 0 1 0 14.14" />
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
                   </svg>
-                  <span class="ctrl-btn-text">Audio</span>
+                  <span class="ctrl-btn-text" data-i18n="cam.gallery"
+                    >Gallery</span
+                  >
                 </span>
               </button>
-              <span id="voice-status" class="voice-status" hidden></span>
               <button
                 type="button"
-                id="btn-voice-clear"
-                class="ctrl-btn voice-clear-btn"
-                aria-label="Remove voice note"
-                hidden
+                id="btn-capture"
+                class="capture-btn"
+                data-i18n-aria="cam.capture_aria"
+                aria-label="Take photo"
+              ></button>
+              <button
+                type="button"
+                id="btn-generate"
+                class="ctrl-btn primary ctrl-btn-with-text ctrl-btn-primary-row"
+                data-i18n-aria="cam.generate_aria"
+                aria-label="Generate report from photos and audio"
               >
-                Clear voice
+                <span class="ctrl-btn-inner ctrl-btn-inner-spread">
+                  <span class="ctrl-btn-text" data-i18n="cam.report">Report</span>
+                  <svg
+                    class="ctrl-btn-icon ctrl-btn-arrow"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.25"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                    <polyline points="12 5 19 12 12 19" />
+                  </svg>
+                </span>
               </button>
             </div>
-            <audio
-              id="voice-note-playback"
-              class="voice-playback"
-              controls
-              preload="metadata"
+            <input
+              type="file"
+              id="file-gallery"
+              accept="image/*"
+              multiple
               hidden
-              aria-label="Replay voice note"
-            ></audio>
-          </div>
-          <div class="camera-controls">
-            <button
-              type="button"
-              id="btn-gallery"
-              class="ctrl-btn ctrl-btn-with-text"
-              aria-label="Upload photos from your gallery"
-            >
-              <span class="ctrl-btn-inner">
-                <svg
-                  class="ctrl-btn-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <polyline points="21 15 16 10 5 21" />
-                </svg>
-                <span class="ctrl-btn-text">Gallery</span>
-              </span>
-            </button>
-            <button
-              type="button"
-              id="btn-capture"
-              class="capture-btn"
-              aria-label="Take photo"
-            ></button>
-            <button
-              type="button"
-              id="btn-generate"
-              class="ctrl-btn primary ctrl-btn-with-text ctrl-btn-primary-row"
-              aria-label="Generate report from photos and audio"
-            >
-              <span class="ctrl-btn-inner ctrl-btn-inner-spread">
-                <span class="ctrl-btn-text">Report</span>
-                <svg
-                  class="ctrl-btn-icon ctrl-btn-arrow"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.25"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                  <polyline points="12 5 19 12 12 19" />
-                </svg>
-              </span>
-            </button>
-          </div>
-          <input
-            type="file"
-            id="file-gallery"
-            accept="image/*"
-            multiple
-            hidden
-          />
-        </section>
+            />
+          </section>
 
-        <!-- Settings -->
-        <section id="screen-settings" class="screen" hidden>
-          <header class="screen-header">
-            <h1>Settings</h1>
-          </header>
-          <div class="settings-list">
-            <label class="setting-row">
-              <span>Dark mode</span>
-              <input type="checkbox" id="set-dark" checked />
-            </label>
-            <label class="setting-row">
-              <span>Use device location</span>
-              <input type="checkbox" id="set-location" checked />
-            </label>
-            <label class="setting-row">
-              <span>Use device camera</span>
-              <input type="checkbox" id="set-camera" checked />
-            </label>
-            <label class="setting-row">
-              <span>Use microphone</span>
-              <input type="checkbox" id="set-microphone" checked />
-            </label>
-            <div class="setting-camera-actions">
-              <button type="button" id="btn-open-app-settings" class="settings-action-btn">
-                Open app settings
+          <!-- Settings -->
+          <section id="screen-settings" class="screen" hidden>
+            <header class="screen-header">
+              <h1 data-i18n="set.title">Settings</h1>
+            </header>
+            <div class="settings-list">
+              <label class="setting-row">
+                <span data-i18n="set.dark">Dark mode</span>
+                <input type="checkbox" id="set-dark" checked />
+              </label>
+              <label class="setting-row">
+                <span data-i18n="set.location">Use device location</span>
+                <input type="checkbox" id="set-location" checked />
+              </label>
+              <label class="setting-row">
+                <span data-i18n="set.camera">Use device camera</span>
+                <input type="checkbox" id="set-camera" checked />
+              </label>
+              <label class="setting-row">
+                <span data-i18n="set.microphone">Use microphone</span>
+                <input type="checkbox" id="set-microphone" checked />
+              </label>
+              <div class="setting-row setting-row-language">
+                <span id="settings-language-label" data-i18n="set.language"
+                  >Language</span
+                >
+                <div
+                  class="flick-select flick-select-settings"
+                  id="settings-ui-language-root"
+                >
+                  <input
+                    type="hidden"
+                    id="set-ui-language"
+                    value="en"
+                    aria-hidden="true"
+                  />
+                  <button
+                    type="button"
+                    class="flick-select-trigger"
+                    id="settings-ui-language-trigger"
+                    aria-haspopup="listbox"
+                    aria-expanded="false"
+                    aria-controls="settings-ui-language-panel"
+                    aria-labelledby="settings-language-label"
+                  >
+                    <span
+                      class="flick-select-value"
+                      id="settings-ui-language-value"
+                      >English</span
+                    >
+                    <span class="flick-select-chevron" aria-hidden="true"></span>
+                  </button>
+                  <div
+                    class="flick-select-panel"
+                    id="settings-ui-language-panel"
+                    role="listbox"
+                    hidden
+                  ></div>
+                </div>
+              </div>
+              <div class="setting-camera-actions">
+                <button
+                  type="button"
+                  id="btn-open-app-settings"
+                  class="settings-action-btn"
+                  data-i18n="set.open_app"
+                >
+                  Open app settings
+                </button>
+                <p class="settings-help" data-i18n="set.help_blocked">
+                  Use this if the camera or microphone prompt was blocked or the
+                  live view won’t start.
+                </p>
+              </div>
+              <button
+                type="button"
+                id="btn-clear-data"
+                class="danger-btn"
+                data-i18n="set.clear"
+              >
+                Clear all local data
               </button>
-              <p class="settings-help">
-                Use this if the camera or microphone prompt was blocked or the
-                live view won’t start.
-              </p>
             </div>
-            <button type="button" id="btn-clear-data" class="danger-btn">
-              Clear all local data
-            </button>
-          </div>
-        </section>
+          </section>
         </div>
       </main>
 
-      <nav class="bottom-nav" aria-label="Main">
+      <nav
+        class="bottom-nav"
+        data-i18n-aria="nav.main_aria"
+        aria-label="Main"
+      >
         <button type="button" class="nav-item active" data-nav="home">
           <span class="nav-icon" aria-hidden="true">
             <svg
@@ -240,7 +477,7 @@
               <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
           </span>
-          <span>Home</span>
+          <span class="nav-label" data-i18n="nav.home">Home</span>
         </button>
         <button type="button" class="nav-item" data-nav="camera">
           <span class="nav-icon" aria-hidden="true">
@@ -259,7 +496,7 @@
               <circle cx="12" cy="13" r="4" />
             </svg>
           </span>
-          <span>Camera</span>
+          <span class="nav-label" data-i18n="nav.camera">Camera</span>
         </button>
         <button type="button" class="nav-item" data-nav="settings">
           <span class="nav-icon" aria-hidden="true">
@@ -278,7 +515,7 @@
               <circle cx="12" cy="12" r="3" />
             </svg>
           </span>
-          <span>Settings</span>
+          <span class="nav-label" data-i18n="nav.settings">Settings</span>
         </button>
       </nav>
     </div>
@@ -287,11 +524,19 @@
     <div id="modal-confirm" class="modal" hidden>
       <div class="modal-backdrop" data-close="confirm"></div>
       <div class="modal-card">
-        <h2>Use this photo?</h2>
-        <img id="confirm-preview" alt="Selected photo" />
+        <h2 data-i18n="modal.confirm_title">Use this photo?</h2>
+        <img
+          id="confirm-preview"
+          alt="Selected photo"
+          data-i18n-alt="modal.confirm_img_alt"
+        />
         <div class="modal-actions">
-          <button type="button" id="btn-retake">Retake</button>
-          <button type="button" id="btn-accept" class="primary">Accept</button>
+          <button type="button" id="btn-retake" data-i18n="modal.retake">
+            Retake
+          </button>
+          <button type="button" id="btn-accept" class="primary" data-i18n="modal.accept">
+            Accept
+          </button>
         </div>
       </div>
     </div>
@@ -300,49 +545,109 @@
     <div id="modal-report" class="modal" hidden>
       <div class="modal-backdrop" data-close="report"></div>
       <div class="modal-card modal-report">
-        <h2>Edit report</h2>
+        <h2 data-i18n="modal.report_title">Edit report</h2>
         <div id="report-ai-triage" class="ai-triage" hidden>
-          <p class="ai-triage-heading">AI review</p>
+          <p class="ai-triage-heading" data-i18n="modal.ai_heading">AI review</p>
           <p id="report-ai-triage-text" class="ai-triage-text"></p>
         </div>
         <form id="form-report" class="report-form">
-          <label>
-            Category
-            <select id="field-category" name="category"></select>
+          <label
+            class="flick-select flick-select-form flick-select-label"
+            id="field-category-root"
+            for="field-category-trigger"
+          >
+            <span data-i18n="modal.category">Category</span>
+            <input
+              type="hidden"
+              id="field-category"
+              name="category"
+              value=""
+            />
+            <button
+              type="button"
+              class="flick-select-trigger flick-select-trigger-form"
+              id="field-category-trigger"
+              aria-haspopup="listbox"
+              aria-expanded="false"
+              aria-controls="field-category-panel"
+            >
+              <span class="flick-select-value" id="field-category-value"
+                >—</span
+              >
+              <span class="flick-select-chevron" aria-hidden="true"></span>
+            </button>
+            <div
+              class="flick-select-panel"
+              id="field-category-panel"
+              role="listbox"
+              hidden
+            ></div>
           </label>
           <label>
-            Description
+            <span data-i18n="modal.description">Description</span>
             <span id="report-description-hint" class="form-field-meta"></span>
-            <textarea id="field-description" name="description" rows="4"></textarea>
+            <textarea
+              id="field-description"
+              name="description"
+              rows="4"
+            ></textarea>
           </label>
           <label>
-            Location (address)
+            <span data-i18n="modal.location">Location (address)</span>
             <span class="form-field-meta">
-              <span class="field-tag field-tag-required">Required</span> — street address or intersection
+              <span class="field-tag field-tag-required" data-i18n="field.required"
+                >Required</span
+              >
+              <span> — </span>
+              <span data-i18n="modal.loc_detail"
+                >street address or intersection</span
+              >
             </span>
             <input
               type="text"
               id="field-location"
               name="location"
+              data-i18n-placeholder="modal.loc_ph"
               placeholder="Required: street address or intersection"
               autocomplete="street-address"
             />
           </label>
-          <p id="report-primary-photo-note" class="form-hint" hidden>
-            Your first photo is sent automatically as the primary image with this
-            report.
+          <p
+            id="report-primary-photo-note"
+            class="form-hint"
+            hidden
+            data-i18n="modal.primary_note"
+          >
+            Your first photo is sent automatically as the primary image with
+            this report.
           </p>
           <div id="field-dynamic" class="dynamic-fields"></div>
-          <p id="report-offline-note" class="note" hidden>
+          <p id="report-offline-note" class="note" hidden data-i18n="modal.offline">
             You’re offline or AI failed — fill in the form manually.
           </p>
           <div class="modal-actions modal-actions-split">
-            <button type="button" id="btn-report-cancel">Cancel</button>
+            <button
+              type="button"
+              id="btn-report-cancel"
+              data-i18n="modal.cancel"
+            >
+              Cancel
+            </button>
             <div class="modal-actions-primary">
-              <button type="button" id="btn-report-save" class="secondary">
+              <button
+                type="button"
+                id="btn-report-save"
+                class="secondary"
+                data-i18n="modal.save"
+              >
                 Save concern
               </button>
-              <button type="button" id="btn-report-submit" class="primary">
+              <button
+                type="button"
+                id="btn-report-submit"
+                class="primary"
+                data-i18n="modal.submit"
+              >
                 Submit concern
               </button>
             </div>
@@ -355,21 +660,39 @@
     <div id="modal-detail" class="modal" hidden>
       <div class="modal-backdrop" data-close="detail"></div>
       <div class="modal-card modal-detail">
-        <h2>Your concern</h2>
+        <h2 data-i18n="detail.title">Your concern</h2>
         <p id="detail-status-line" class="detail-status-line"></p>
         <div id="detail-images" class="detail-images"></div>
         <div id="detail-voice-wrap" class="detail-voice-wrap" hidden></div>
         <div id="detail-body" class="detail-body"></div>
         <div class="modal-actions modal-detail-actions">
-          <button type="button" id="btn-detail-close">Close</button>
-          <button type="button" id="btn-detail-edit" class="secondary">
+          <button type="button" id="btn-detail-close" data-i18n="detail.close">
+            Close
+          </button>
+          <button
+            type="button"
+            id="btn-detail-edit"
+            class="secondary"
+            data-i18n="detail.edit"
+          >
             Edit
           </button>
-          <button type="button" id="btn-detail-submit" class="primary" hidden>
+          <button
+            type="button"
+            id="btn-detail-submit"
+            class="primary"
+            hidden
+            data-i18n="detail.submit311"
+          >
             Submit to 311
           </button>
         </div>
-        <button type="button" id="btn-detail-delete" class="detail-delete-btn">
+        <button
+          type="button"
+          id="btn-detail-delete"
+          class="detail-delete-btn"
+          data-i18n="detail.delete"
+        >
           Delete
         </button>
       </div>
@@ -377,12 +700,22 @@
 
     <!-- App confirm (replaces window.confirm — WebView shows “JavaScript” as title) -->
     <div id="modal-app-confirm" class="modal modal-app-confirm" hidden>
-      <div class="modal-backdrop" data-close="app-confirm" aria-hidden="true"></div>
+      <div
+        class="modal-backdrop"
+        data-close="app-confirm"
+        aria-hidden="true"
+      ></div>
       <div class="modal-card modal-app-confirm-card">
         <h2 id="app-confirm-title">Confirm</h2>
         <p id="app-confirm-message" class="app-confirm-message"></p>
         <div class="modal-actions">
-          <button type="button" id="btn-app-confirm-cancel">Cancel</button>
+          <button
+            type="button"
+            id="btn-app-confirm-cancel"
+            data-i18n="modal.cancel"
+          >
+            Cancel
+          </button>
           <button type="button" id="btn-app-confirm-ok">OK</button>
         </div>
       </div>
@@ -390,7 +723,12 @@
 
     <!-- Toast -->
     <div id="toast" class="toast" hidden role="status">
-      <span id="toast-spinner" class="toast-spinner" hidden aria-hidden="true"></span>
+      <span
+        id="toast-spinner"
+        class="toast-spinner"
+        hidden
+        aria-hidden="true"
+      ></span>
       <span id="toast-message" class="toast-message"></span>
     </div>
 
@@ -398,6 +736,7 @@
       src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
       crossorigin=""
     ></script>
+    <script src="locales-bundle.js" defer></script>
     <script src="app.js" defer></script>
   </body>
 </html>
