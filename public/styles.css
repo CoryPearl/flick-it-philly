@@ -1307,11 +1307,11 @@ body.light .bottom-nav {
   flex-shrink: 0;
 }
 
-/* Modals */
+/* Modals — above map locate (1000) and Leaflet controls */
 .modal {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 2000;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -1319,7 +1319,7 @@ body.light .bottom-nav {
 }
 
 .modal-app-confirm {
-  z-index: 110;
+  z-index: 2100;
 }
 
 .app-confirm-message {
@@ -1732,7 +1732,7 @@ body.light .field-tag-optional {
   bottom: calc(5rem + var(--safe-bottom));
   left: 50%;
   transform: translate(-50%, 0);
-  z-index: 200;
+  z-index: 2200;
   padding: 0.65rem 1.1rem;
   background: var(--bg-elevated);
   border: 1px solid var(--gold-dim);
